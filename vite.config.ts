@@ -4,6 +4,24 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+    css: true,
+    exclude: ['node_modules', 'e2e', 'dist', '.idea', '.git', '.cache'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: [
+        'node_modules/',
+        'src/test/',
+        'e2e/',
+        '**/*.test.{ts,tsx}',
+        '**/*.spec.{ts,tsx}',
+      ]
+    }
+  },
   plugins: [
     react(),
     VitePWA({
