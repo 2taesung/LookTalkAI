@@ -16,6 +16,10 @@ import {
 import { Button } from './ui/Button';
 import { createShareableContent } from '../lib/supabaseActions';
 import { useToast } from './ToastProvider';
+import { useLanguageText } from '../hooks/useLanguageText';
+import { detectAudioType, getAudioDuration, getAudioTypeStyles } from '../lib/audioTypes';
+import { AUDIO_DURATIONS } from '../constants/audioConfig';
+import { getErrorMessage } from '../lib/errorHandler';
 
 interface AudioPlayerProps {
   audioUrl?: string;
@@ -61,35 +65,20 @@ export function AudioPlayer({
   const audioRef = useRef<HTMLAudioElement>(null);
   const { showToast } = useToast();
 
-  // 오디오 타입 확인
-  const isReactionVoice = audioUrl?.startsWith('reaction-voice-playing:');
-  const isSpeechPlaying = audioUrl?.startsWith('speech-playing:');
-  const isDemoAudio = audioUrl?.startsWith('data:audio/demo');
-  const isPhotoAnalysisAudio = audioUrl?.startsWith('photo-analysis-audio:');
-  const isDebateAudio = audioUrl?.startsWith('debate-playing:'); // 토론 오디오 감지
-  const isRecordedAudio =
-    audioUrl?.includes('blob:') ||
-    audioUrl?.includes('data:audio/webm') ||
-    audioUrl?.includes('data:audio/wav');
-  const isRealAudio =
-    audioUrl &&
-    !isReactionVoice &&
-    !isSpeechPlaying &&
-    !isDemoAudio &&
-    !isPhotoAnalysisAudio &&
-    !isDebateAudio;
+  // Use shared utilities for audio type detection and language text
+  const audioTypeInfo = detectAudioType(audioUrl);
+  const {
+    isReactionVoice,
+    isSpeechPlaying,
+    isDemoAudio,
+    isPhotoAnalysisAudio,
+    isDebateAudio,
+    isRecordedAudio,
+    isRealAudio,
+    type: audioType,
+  } = audioTypeInfo;
 
-  // 언어별 텍스트
-  const getText = (ko: string, en: string, zh: string) => {
-    switch (language) {
-      case 'ko':
-        return ko;
-      case 'zh':
-        return zh;
-      default:
-        return en;
-    }
-  };
+  const getText = useLanguageText(language);
 
   useEffect(() => {
     if (
@@ -201,60 +190,31 @@ export function AudioPlayer({
   const handleAutoPlay = async () => {
     console.log('🎵 자동 재생 함수 실행...');
 
-    if (isReactionVoice) {
-      console.log('🎙️ Reaction Voice 자동 재생 시작');
-      setIsPlaying(true);
-      const duration = 15000; // 15초
-      setTimeout(() => {
-        setIsPlaying(false);
-        setPlaybackComplete(true);
-      }, duration);
-      return;
+    // Handle simulated audio types (non-real audio)
+    if (!isRealAudio && audioType !== 'none') {
+      const duration = getAudioDuration(audioType);
+
+      if (duration > 0) {
+        const typeLabels = {
+          'reaction-voice': '🎙️ Reaction Voice',
+          'speech': '🎤 음성 합성',
+          'photo-analysis': '📸 사진 분석 오디오',
+          'debate': '🎭 토론 오디오',
+          'demo': '🎭 데모 오디오',
+        };
+
+        console.log(`${typeLabels[audioType as keyof typeof typeLabels] || audioType} 자동 재생 시작`);
+        setIsPlaying(true);
+
+        setTimeout(() => {
+          setIsPlaying(false);
+          setPlaybackComplete(true);
+        }, duration);
+        return;
+      }
     }
 
-    if (isSpeechPlaying) {
-      console.log('🎤 음성 합성 자동 재생 시작');
-      setIsPlaying(true);
-      const duration = 5000; // 5초
-      setTimeout(() => {
-        setIsPlaying(false);
-        setPlaybackComplete(true);
-      }, duration);
-      return;
-    }
-
-    if (isPhotoAnalysisAudio) {
-      console.log('📸 사진 분석 오디오 자동 재생 시작');
-      setIsPlaying(true);
-      const duration = 8000; // 8초
-      setTimeout(() => {
-        setIsPlaying(false);
-        setPlaybackComplete(true);
-      }, duration);
-      return;
-    }
-
-    if (isDebateAudio) {
-      console.log('🎭 토론 오디오 자동 재생 시작');
-      setIsPlaying(true);
-      const duration = 20000; // 20초 (토론은 더 길게)
-      setTimeout(() => {
-        setIsPlaying(false);
-        setPlaybackComplete(true);
-      }, duration);
-      return;
-    }
-
-    if (isDemoAudio) {
-      console.log('🎭 데모 오디오 자동 재생 시작');
-      setIsPlaying(true);
-      setTimeout(() => {
-        setIsPlaying(false);
-        setPlaybackComplete(true);
-      }, 3000);
-      return;
-    }
-
+    // Handle real audio playback
     const audio = audioRef.current;
     if (!audio || isLoading || audioError) {
       console.log('❌ 자동 재생 불가:', {
@@ -348,70 +308,33 @@ export function AudioPlayer({
   ]);
 
   const handlePlayPause = async () => {
-    if (isReactionVoice) {
-      console.log('🎙️ Reaction Voice 재생:', character);
-      setIsPlaying(!isPlaying);
-      if (!isPlaying) {
-        const duration = 15000; // 15초
-        setTimeout(() => {
-          setIsPlaying(false);
-          setPlaybackComplete(true);
-        }, duration);
+    // Handle simulated audio types (non-real audio)
+    if (!isRealAudio && audioType !== 'none') {
+      const duration = getAudioDuration(audioType);
+
+      if (duration > 0) {
+        const typeLabels = {
+          'reaction-voice': `🎙️ Reaction Voice 재생: ${character}`,
+          'speech': `🎤 음성 합성이 이미 ${character}로 재생 중`,
+          'photo-analysis': `📸 ${character} 사진 분석 오디오 재생`,
+          'debate': `🎭 ${character} 토론 오디오 재생`,
+          'demo': `🎭 ${character} 데모 오디오 재생`,
+        };
+
+        console.log(typeLabels[audioType as keyof typeof typeLabels] || audioType);
+        setIsPlaying(!isPlaying);
+
+        if (!isPlaying) {
+          setTimeout(() => {
+            setIsPlaying(false);
+            setPlaybackComplete(true);
+          }, duration);
+        }
+        return;
       }
-      return;
     }
 
-    if (isSpeechPlaying) {
-      console.log('🎤 음성 합성이 이미', character, '로 재생 중');
-      setIsPlaying(!isPlaying);
-      if (!isPlaying) {
-        const duration = 5000; // 5초
-        setTimeout(() => {
-          setIsPlaying(false);
-          setPlaybackComplete(true);
-        }, duration);
-      }
-      return;
-    }
-
-    if (isPhotoAnalysisAudio) {
-      console.log('📸', character, '사진 분석 오디오 재생');
-      setIsPlaying(!isPlaying);
-      if (!isPlaying) {
-        const duration = 8000; // 8초
-        setTimeout(() => {
-          setIsPlaying(false);
-          setPlaybackComplete(true);
-        }, duration);
-      }
-      return;
-    }
-
-    if (isDebateAudio) {
-      console.log('🎭', character, '토론 오디오 재생');
-      setIsPlaying(!isPlaying);
-      if (!isPlaying) {
-        const duration = 20000; // 20초
-        setTimeout(() => {
-          setIsPlaying(false);
-          setPlaybackComplete(true);
-        }, duration);
-      }
-      return;
-    }
-
-    if (isDemoAudio) {
-      console.log('🎭', character, '데모 오디오 재생');
-      setIsPlaying(!isPlaying);
-      if (!isPlaying) {
-        setTimeout(() => {
-          setIsPlaying(false);
-          setPlaybackComplete(true);
-        }, 3000);
-      }
-      return;
-    }
-
+    // Handle real audio playback
     const audio = audioRef.current;
     if (!audio || isLoading) return;
 
@@ -464,7 +387,7 @@ export function AudioPlayer({
       console.error('❌ 오디오 재생 오류:', error);
       setIsPlaying(false);
       setIsLoading(false);
-      setAudioError(error instanceof Error ? error.message : '재생 실패');
+      setAudioError(getErrorMessage(error));
     }
   };
 

@@ -15,16 +15,11 @@ import type { DebateResult } from '../lib/debateAnalysis';
 import { supabase } from '../lib/supabaseClient';
 import { createShareableContent } from '../lib/supabaseActions';
 
-// Base64 문자열을 Blob 객체로 변환하는 헬퍼 함수
-function base64ToBlob(base64: string, contentType = 'image/png'): Blob {
-  const byteCharacters = atob(base64.split(',')[1]);
-  const byteNumbers = new Array(byteCharacters.length);
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i);
-  }
-  const byteArray = new Uint8Array(byteNumbers);
-  return new Blob([byteArray], { type: contentType });
-}
+// Shared utilities
+import { useLanguageText } from '../hooks/useLanguageText';
+import { base64ToBlob } from '../lib/imageUtils';
+import { ANALYSIS_LIMITS, DEBATE_CONFIG } from '../constants/audioConfig';
+import { getErrorMessage } from '../lib/errorHandler';
 
 interface DebateAnalyzerProps {
   selectedLanguage: string;
@@ -58,13 +53,7 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
   const localizedPersona1Info = persona1Data ? getLocalizedPersonaInfo(persona1Data, selectedLanguage) : null;
   const localizedPersona2Info = persona2Data ? getLocalizedPersonaInfo(persona2Data, selectedLanguage) : null;
 
-  const getText = (ko: string, en: string, zh: string) => {
-    switch (selectedLanguage) {
-      case 'ko': return ko;
-      case 'zh': return zh;
-      default: return en;
-    }
-  };
+  const getText = useLanguageText(selectedLanguage);
 
   // 이미지가 선택되었을 때 페르소나 선택 섹션으로 스크롤
   useEffect(() => {
@@ -134,7 +123,7 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
           setCurrentStep(steps[stepIndex]);
           stepIndex++;
         }
-      }, 2000);
+      }, DEBATE_CONFIG.STEP_DURATION);
 
       const result = await analyzePhotoDebate({
         persona1: selectedPersona1,
