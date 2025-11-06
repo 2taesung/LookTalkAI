@@ -1,5 +1,6 @@
 // ElevenLabs 음성 합성 라이브러리 (단일 페르소나용)
 import type { PersonaId } from './personas'
+import { withTimeout } from './utils'
 
 const ELEVENLABS_API_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY as string
 
@@ -65,24 +66,28 @@ export async function synthesizeVoice(options: TTSOptions): Promise<TTSResult> {
 async function synthesizeWithElevenLabs(text: string, voiceId: string): Promise<TTSResult> {
   const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`
 
-  const response = await fetch(ttsUrl, {
-    method: 'POST',
-    headers: {
-      'Accept': 'audio/mpeg',
-      'Content-Type': 'application/json',
-      'xi-api-key': ELEVENLABS_API_KEY,
-    },
-    body: JSON.stringify({
-      text: text,
-      model_id: 'eleven_multilingual_v2',
-      voice_settings: {
-        stability: 0.5,
-        similarity_boost: 0.75,
-        style: 0.1,
-        use_speaker_boost: true
+  const response = await withTimeout(
+    fetch(ttsUrl, {
+      method: 'POST',
+      headers: {
+        'Accept': 'audio/mpeg',
+        'Content-Type': 'application/json',
+        'xi-api-key': ELEVENLABS_API_KEY,
       },
+      body: JSON.stringify({
+        text: text,
+        model_id: 'eleven_multilingual_v2',
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.75,
+          style: 0.1,
+          use_speaker_boost: true
+        },
+      }),
     }),
-  })
+    60000, // 60초 타임아웃 (음성 합성은 시간이 더 걸릴 수 있음)
+    'ElevenLabs API request timeout (60s)'
+  )
 
   if (!response.ok) {
     const errorText = await response.text()

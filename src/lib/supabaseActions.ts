@@ -30,6 +30,11 @@ export async function createShareableContent(data: ContentData): Promise<string>
       throw new Error("DB에 데이터 저장 후 ID를 받지 못했습니다.");
     }
 
+    if (!insertedData.id) {
+      console.error('응답 데이터 구조 오류:', insertedData);
+      throw new Error("DB 응답 형식이 올바르지 않습니다. ID 필드가 없습니다.");
+    }
+
     return insertedData.id.toString();
 
   } catch (error) {

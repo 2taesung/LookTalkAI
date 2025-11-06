@@ -47,6 +47,8 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
   const analyzeButtonRef = useRef<HTMLDivElement>(null);
   // 분석 상태 표시 영역 참조
   const analysisStatusRef = useRef<HTMLDivElement>(null);
+  // interval cleanup을 위한 ref
+  const stepIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const navigate = useNavigate();
   const guestUsage = getGuestUsage();
@@ -93,6 +95,16 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
     }
   }, [isAnalyzing]);
 
+  // interval cleanup - 컴포넌트 언마운트 시 메모리 누수 방지
+  useEffect(() => {
+    return () => {
+      if (stepIntervalRef.current) {
+        clearInterval(stepIntervalRef.current);
+        stepIntervalRef.current = null;
+      }
+    };
+  }, []);
+
   const handleAnalyze = async () => {
     if (!selectedImage || !canAnalyze) return;
 
@@ -117,7 +129,7 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
       ];
 
       let stepIndex = 0;
-      const stepInterval = setInterval(() => {
+      stepIntervalRef.current = setInterval(() => {
         if (stepIndex < steps.length) {
           setCurrentStep(steps[stepIndex]);
           stepIndex++;
@@ -131,7 +143,10 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
         language: selectedLanguage,
       });
 
-      clearInterval(stepInterval);
+      if (stepIntervalRef.current) {
+        clearInterval(stepIntervalRef.current);
+        stepIntervalRef.current = null;
+      }
       setCurrentStep(getText('완료!', 'Complete!', '完成！'));
       
       setDebateResult(result);
@@ -141,6 +156,10 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
       console.error('❌ 토론 분석 실패:', err);
       setError(err instanceof Error ? err.message : getText('토론 분석에 실패했습니다', 'Debate analysis failed', '辩论分析失败'));
     } finally {
+      if (stepIntervalRef.current) {
+        clearInterval(stepIntervalRef.current);
+        stepIntervalRef.current = null;
+      }
       setIsAnalyzing(false);
       setCurrentStep('');
     }

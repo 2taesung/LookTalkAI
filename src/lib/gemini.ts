@@ -1,6 +1,7 @@
 // Enhanced client-side Gemini integration with dynamic reactions based on input text
 import type { CharacterId } from './characters'
 import { detectLanguage } from './languageDetection'
+import { withTimeout } from './utils'
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent'
@@ -142,43 +143,47 @@ ${characterData.displayName}: "[Second reaction relevant to text content]"
 
   console.log('🎯 동적 반응 생성 프롬프트:', prompt.substring(0, 200) + '...')
 
-  const response = await fetch(`${GEMINI_BASE_URL}?key=${GEMINI_API_KEY}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      contents: [{
-        parts: [{
-          text: prompt
-        }]
-      }],
-      generationConfig: {
-        temperature: 0.8, // 약간 낮춰서 더 일관된 반응 생성
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 1024,
+  const response = await withTimeout(
+    fetch(`${GEMINI_BASE_URL}?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-      safetySettings: [
-        {
-          category: "HARM_CATEGORY_HARASSMENT",
-          threshold: "BLOCK_MEDIUM_AND_ABOVE"
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.8, // 약간 낮춰서 더 일관된 반응 생성
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024,
         },
-        {
-          category: "HARM_CATEGORY_HATE_SPEECH",
-          threshold: "BLOCK_MEDIUM_AND_ABOVE"
-        },
-        {
-          category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-          threshold: "BLOCK_MEDIUM_AND_ABOVE"
-        },
-        {
-          category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-          threshold: "BLOCK_MEDIUM_AND_ABOVE"
-        }
-      ]
-    })
-  })
+        safetySettings: [
+          {
+            category: "HARM_CATEGORY_HARASSMENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_HATE_SPEECH",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          }
+        ]
+      })
+    }),
+    30000, // 30초 타임아웃
+    'Gemini API request timeout (30s)'
+  )
 
   if (!response.ok) {
     const errorText = await response.text()
