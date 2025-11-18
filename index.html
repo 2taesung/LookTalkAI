@@ -5,16 +5,64 @@
     <link rel="icon" type="image/png" href="/icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#8B5CF6" />
+    
+    <!-- 기본 메타데이터 (동적으로 덮어씌워짐) -->
     <meta name="description" content="LookTalkAI - AI analyzes your photos from unique personas and delivers creative interpretations as voice messages" />
+    <meta name="keywords" content="AI photo analysis, artificial intelligence, photo interpretation, voice message, persona, LookTalkAI" />
+    <meta name="author" content="LookTalkAI" />
+    <meta name="robots" content="index, follow" />
+    
+    <!-- Open Graph 기본값 -->
+    <meta property="og:site_name" content="LookTalkAI" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/logo.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    
+    <!-- Twitter Card 기본값 -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@LookTalkAI" />
+    <meta name="twitter:creator" content="@LookTalkAI" />
+    
+    <!-- PWA 메타데이터 -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="LookTalkAI" />
     <meta name="mobile-web-app-capable" content="yes" />
+    
     <title>LookTalkAI - AI Photo Analysis with Voice</title>
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/icon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icon.png" />
     <link rel="mask-icon" href="/icon.png" color="#8B5CF6" />
+    
+    <!-- 구조화된 데이터 (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "LookTalkAI",
+      "description": "AI analyzes your photos from unique personas and delivers creative interpretations as voice messages",
+      "url": "https://looktalkai.org",
+      "applicationCategory": "MultimediaApplication",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "creator": {
+        "@type": "Organization",
+        "name": "LookTalkAI"
+      },
+      "featureList": [
+        "AI Photo Analysis",
+        "Voice Interpretation",
+        "Multiple Personas",
+        "Free to Use"
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

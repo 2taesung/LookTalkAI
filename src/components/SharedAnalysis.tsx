@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
   Sparkles,
   Download,
@@ -56,30 +57,46 @@ export function SharedAnalysis({ selectedLanguage }: SharedAnalysisProps) {
     }
   };
 
-  // 테스트용 샘플 데이터 생성 함수
-  const createTestSharedData = () => {
-    console.log('🧪 테스트용 공유 데이터 생성 중...');
-    const testData: SharedAnalysisData = {
-      id: shareId || 'test-share-id',
-      imageUrl: '/image.png', // public 폴더의 이미지 사용
-      imageData:
-        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-      script: getText(
-        '안녕하세요! 이것은 테스트용 AI 사진 분석 결과입니다. LookTalkAI에서 AI가 실제로 여러분의 사진을 분석하고 음성으로 해석한 내용이 이런 식으로 표시됩니다. 로맨틱한 관점에서 보면, 이 사진은 따뜻한 감정과 아름다운 순간을 담고 있는 것 같네요. 조명이 정말 완벽하고, 구도도 훌륭합니다. 이런 사진은 보는 이로 하여금 마음이 따뜻해지게 만드는 특별한 힘이 있어요.',
-        'Hello! This is a test AI photo analysis result. In LookTalkAI, AI actually analyzes your photos and provides voice interpretations like this. From a romantic perspective, this photo seems to capture warm emotions and beautiful moments. The lighting is absolutely perfect, and the composition is excellent. Photos like this have a special power to warm the hearts of viewers.',
-        '您好！这是测试用的AI照片分析结果。在LookTalkAI中，AI实际分析您的照片并提供这样的语音解读。从浪漫的角度来看，这张照片似乎捕捉了温暖的情感和美好的瞬间。光线绝对完美，构图也很出色。这样的照片有一种特殊的力量，能够温暖观者的心。'
-      ),
-      audioUrl: '', // 실제 오디오는 나중에 생성
-      persona: 'witty-entertainer',
-      timestamp: Date.now(),
-      title: getText(
-        '샘플 AI 사진 분석',
-        'Sample AI Photo Analysis',
-        '示例AI照片分析'
-      ),
-      language: selectedLanguage,
+  // 메타데이터 생성
+  const generateMetadata = () => {
+    if (!sharedData) {
+      return {
+        title: getText(
+          'LookTalkAI - AI 사진 분석',
+          'LookTalkAI - AI Photo Analysis',
+          'LookTalkAI - AI照片分析'
+        ),
+        description: getText(
+          'AI가 다양한 페르소나의 관점으로 사진을 창의적으로 해석합니다',
+          'AI creatively interprets photos from various persona perspectives',
+          'AI从不同角色的角度创造性地解释照片'
+        ),
+        image: `${window.location.origin}/logo.png`
+      };
+    }
+
+    const personaData = personas.find((p) => p.id === sharedData.persona);
+    const localizedPersonaInfo = personaData
+      ? getLocalizedPersonaInfo(personaData, selectedLanguage)
+      : null;
+
+    const title = getText(
+      `${localizedPersonaInfo?.name || ''}의 AI 사진 분석 - LookTalkAI`,
+      `${localizedPersonaInfo?.name || ''}'s AI Photo Analysis - LookTalkAI`,
+      `${localizedPersonaInfo?.name || ''}的AI照片分析 - LookTalkAI`
+    );
+
+    const description = getText(
+      `${localizedPersonaInfo?.name || 'AI'}가 이 사진을 분석했습니다: "${sharedData.script.substring(0, 120)}..." 🎭 음성으로 들어보세요!`,
+      `${localizedPersonaInfo?.name || 'AI'} analyzed this photo: "${sharedData.script.substring(0, 120)}..." 🎭 Listen with voice!`,
+      `${localizedPersonaInfo?.name || 'AI'}分析了这张照片："${sharedData.script.substring(0, 120)}..." 🎭 用语音收听！`
+    );
+
+    return {
+      title,
+      description,
+      image: sharedData.imageUrl || `${window.location.origin}/logo.png`
     };
-    return testData;
   };
 
   useEffect(() => {
@@ -119,7 +136,7 @@ export function SharedAnalysis({ selectedLanguage }: SharedAnalysisProps) {
         }
 
         if (contentData) {
-          console.log('✅ Supabase 데이터 로드 성공:', contentData);
+          console.log('✅ Supabase 데이터 로드 성공');
           // DB에서 가져온 데이터를 컴포넌트의 SharedAnalysisData 타입에 맞게 변환합니다.
           const formattedData: SharedAnalysisData = {
             id: contentData.id.toString(),
@@ -199,9 +216,30 @@ export function SharedAnalysis({ selectedLanguage }: SharedAnalysisProps) {
     return words.slice(0, maxWords).join(' ') + '...';
   };
 
+  const metadata = generateMetadata();
+  const personaData = sharedData ? personas.find((p) => p.id === sharedData.persona) : null;
+  const localizedPersonaInfo = personaData
+    ? getLocalizedPersonaInfo(personaData, selectedLanguage)
+    : null;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-teal-50">
+        <Helmet>
+          <title>{metadata.title}</title>
+          <meta name="description" content={metadata.description} />
+          <meta property="og:title" content={metadata.title} />
+          <meta property="og:description" content={metadata.description} />
+          <meta property="og:image" content={metadata.image} />
+          <meta property="og:type" content="website" />
+          <meta property="og:url" content={window.location.href} />
+          <meta name="twitter:card" content="summary_large_image" />
+          <meta name="twitter:title" content={metadata.title} />
+          <meta name="twitter:description" content={metadata.description} />
+          <meta name="twitter:image" content={metadata.image} />
+          <meta name="robots" content="index, follow" />
+          <link rel="canonical" href={window.location.href} />
+        </Helmet>
         <div className="max-w-2xl mx-auto px-3 sm:px-6 py-8">
           <Card>
             <CardContent className="p-8 text-center">
@@ -223,6 +261,20 @@ export function SharedAnalysis({ selectedLanguage }: SharedAnalysisProps) {
   if (error || !sharedData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-teal-50">
+        <Helmet>
+          <title>{metadata.title}</title>
+          <meta name="description" content={metadata.description} />
+          <meta property="og:title" content={metadata.title} />
+          <meta property="og:description" content={metadata.description} />
+          <meta property="og:image" content={metadata.image} />
+          <meta property="og:type" content="website" />
+          <meta property="og:url" content={window.location.href} />
+          <meta name="twitter:card" content="summary_large_image" />
+          <meta name="twitter:title" content={metadata.title} />
+          <meta name="twitter:description" content={metadata.description} />
+          <meta name="twitter:image" content={metadata.image} />
+          <meta name="robots" content="noindex, nofollow" />
+        </Helmet>
         <div className="max-w-2xl mx-auto px-3 sm:px-6 py-8">
           <Card>
             <CardContent className="p-8 text-center">
@@ -259,13 +311,53 @@ export function SharedAnalysis({ selectedLanguage }: SharedAnalysisProps) {
     );
   }
 
-  const personaData = personas.find((p) => p.id === sharedData.persona);
-  const localizedPersonaInfo = personaData
-    ? getLocalizedPersonaInfo(personaData, sharedData.language)
-    : null;
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-teal-50">
+      <Helmet>
+        <title>{metadata.title}</title>
+        <meta name="description" content={metadata.description} />
+        
+        {/* Open Graph 메타데이터 */}
+        <meta property="og:title" content={metadata.title} />
+        <meta property="og:description" content={metadata.description} />
+        <meta property="og:image" content={metadata.image} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={window.location.href} />
+        <meta property="og:site_name" content="LookTalkAI" />
+        <meta property="og:locale" content={selectedLanguage === 'ko' ? 'ko_KR' : selectedLanguage === 'zh' ? 'zh_CN' : 'en_US'} />
+        
+        {/* Twitter Card 메타데이터 */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={metadata.title} />
+        <meta name="twitter:description" content={metadata.description} />
+        <meta name="twitter:image" content={metadata.image} />
+        <meta name="twitter:site" content="@LookTalkAI" />
+        <meta name="twitter:creator" content="@LookTalkAI" />
+        
+        {/* 추가 SEO 메타데이터 */}
+        <meta name="robots" content="index, follow" />
+        <meta name="author" content="LookTalkAI" />
+        <meta name="keywords" content={getText(
+          'AI 사진 분석, 인공지능, 사진 해석, 음성 메시지, 페르소나',
+          'AI photo analysis, artificial intelligence, photo interpretation, voice message, persona',
+          'AI照片分析, 人工智能, 照片解读, 语音消息, 角色'
+        )} />
+        <link rel="canonical" href={window.location.href} />
+        
+        {/* 모바일 최적화 */}
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="theme-color" content="#8B5CF6" />
+        
+        {/* 추가 소셜 미디어 메타데이터 */}
+        <meta property="article:author" content="LookTalkAI" />
+        <meta property="article:published_time" content={new Date(sharedData.timestamp).toISOString()} />
+        <meta property="article:tag" content={getText('AI분석', 'AI Analysis', 'AI分析')} />
+        <meta property="article:tag" content={getText('사진해석', 'Photo Interpretation', '照片解读')} />
+        <meta property="article:tag" content={localizedPersonaInfo?.name || ''} />
+      </Helmet>
+      
       <div className="max-w-2xl mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-6">
         {/* 모바일 최적화된 메인 카드 - 이미지와 오디오를 한 화면에 */}
         <Card className="overflow-hidden">

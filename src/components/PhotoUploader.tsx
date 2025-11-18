@@ -249,7 +249,7 @@ export function PhotoUploader({ onImageSelect, selectedImage, onClearImage, disa
             </div>
           </div>
           
-          <h3 className="text-lg font-semibold text-red-800 mb-2">
+          <h3 className="font-medium text-gray-900 mb-2 text-lg">
             {getText('카메라 접근 오류', 'Camera Access Error', '相机访问错误')}
           </h3>
           

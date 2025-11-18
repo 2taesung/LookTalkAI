@@ -25,13 +25,13 @@ export function Toast({ message, type = 'success', duration = 3000, onClose }: T
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
+        return <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 flex-shrink-0" />;
       case 'error':
-        return <AlertCircle className="w-5 h-5 text-red-500" />;
+        return <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 flex-shrink-0" />;
       case 'info':
-        return <Info className="w-5 h-5 text-blue-500" />;
+        return <Info className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0" />;
       default:
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
+        return <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 flex-shrink-0" />;
     }
   };
 
@@ -63,27 +63,29 @@ export function Toast({ message, type = 'success', duration = 3000, onClose }: T
 
   return (
     <div
-      className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-300 ${
+      className={`fixed bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:transform sm:-translate-x-1/2 z-50 transition-all duration-300 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
       }`}
     >
       <div
-        className={`flex items-center space-x-3 px-4 py-3 rounded-lg shadow-lg border ${getBackgroundColor()} max-w-md w-full`}
+        className={`flex items-center space-x-2 sm:space-x-3 px-3 py-2 sm:px-4 sm:py-3 rounded-lg shadow-lg border ${getBackgroundColor()} max-w-sm sm:max-w-md mx-auto`}
       >
         <div className="flex-shrink-0">
           {getIcon()}
         </div>
-        <div className={`flex-1 min-w-0 ${getTextColor()} text-sm font-medium`}>
-          {message}
+        <div className={`flex-1 min-w-0 ${getTextColor()} text-xs sm:text-sm font-medium`}>
+          <p className="truncate sm:whitespace-normal">
+            {message}
+          </p>
         </div>
         <button
           onClick={() => {
             setIsVisible(false);
             setTimeout(() => onClose?.(), 300);
           }}
-          className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+          className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors p-1"
         >
-          <X className="w-4 h-4" />
+          <X className="w-3 h-3 sm:w-4 sm:h-4" />
         </button>
       </div>
     </div>

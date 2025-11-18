@@ -7,6 +7,7 @@ import { SharedAnalysis } from './components/SharedAnalysis'
 import { PersonaRequestBoard } from './components/PersonaRequestBoard'
 import AuthCallback from './components/AuthCallback'
 import { ToastProvider } from './components/ToastProvider'
+import { ImageProvider } from './contexts/ImageContext'
 import { BoltBadge } from './components/BoltBadge'
 
 // 브라우저 언어 감지 함수
@@ -59,63 +60,65 @@ function App() {
   return (
     <Router>
       <ToastProvider>
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-teal-50">
-          <Routes>
-            {/* 이메일 인증 콜백 페이지 (헤더 없음) */}
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            
-            {/* 일반 페이지들 (헤더 포함) */}
-            <Route path="/*" element={
-              <>
-                <Header
-                  selectedLanguage={selectedLanguage}
-                  onLanguageChange={handleLanguageChange}
-                />
-                
-                <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
-                  <Routes>
-                    <Route path="/" element={<PhotoAnalyzer selectedLanguage={selectedLanguage} />} />
-                    <Route path="/debate" element={<DebateAnalyzer selectedLanguage={selectedLanguage} />} />
-                    <Route path="/persona-requests" element={<PersonaRequestBoard selectedLanguage={selectedLanguage} />} />
-                    <Route path="/shared/:shareId" element={<SharedAnalysis selectedLanguage={selectedLanguage} />} />
-                    <Route path="/analyzer" element={<Navigate to="/" replace />} />
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </Routes>
-                </main>
+        <ImageProvider>
+          <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-teal-50">
+            <Routes>
+              {/* 이메일 인증 콜백 페이지 (헤더 없음) */}
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              
+              {/* 일반 페이지들 (헤더 포함) */}
+              <Route path="/*" element={
+                <>
+                  <Header
+                    selectedLanguage={selectedLanguage}
+                    onLanguageChange={handleLanguageChange}
+                  />
+                  
+                  <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+                    <Routes>
+                      <Route path="/" element={<PhotoAnalyzer selectedLanguage={selectedLanguage} />} />
+                      <Route path="/debate" element={<DebateAnalyzer selectedLanguage={selectedLanguage} />} />
+                      <Route path="/persona-requests" element={<PersonaRequestBoard selectedLanguage={selectedLanguage} />} />
+                      <Route path="/shared/:shareId" element={<SharedAnalysis selectedLanguage={selectedLanguage} />} />
+                      <Route path="/analyzer" element={<Navigate to="/" replace />} />
+                      <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                  </main>
 
-                {/* Footer */}
-                <footer className="border-t border-gray-200 bg-white/50 backdrop-blur-sm">
-                  <div className="max-w-6xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
-                    <div className="text-center space-y-3 sm:space-y-4">
-                      <p className="text-xs sm:text-sm text-gray-600 px-4">
-                        {selectedLanguage === 'ko' ? 'AI가 당신의 사진을 창의적으로 해석합니다.' :
-                         selectedLanguage === 'en' ? 'AI creatively interprets your photos.' :
-                         selectedLanguage === 'zh' ? 'AI创造性地解释您的照片。' :
-                         'AI creatively interprets your photos.'}
-                      </p>
-                      <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs sm:text-sm text-gray-500">
-                        <a href="#privacy" className="hover:text-gray-700 transition-colors">
-                          {selectedLanguage === 'ko' ? '개인정보' : selectedLanguage === 'en' ? 'Privacy' : selectedLanguage === 'zh' ? '隐私' : 'Privacy'}
-                        </a>
-                        <a href="#terms" className="hover:text-gray-700 transition-colors">
-                          {selectedLanguage === 'ko' ? '이용약관' : selectedLanguage === 'en' ? 'Terms' : selectedLanguage === 'zh' ? '条款' : 'Terms'}
-                        </a>
-                        <a href="#contact" className="hover:text-gray-700 transition-colors">
-                          {selectedLanguage === 'ko' ? '문의' : selectedLanguage === 'en' ? 'Contact' : selectedLanguage === 'zh' ? '联系' : 'Contact'}
-                        </a>
-                      </div>
-                      
-                      {/* Built with Bolt.new Badge */}
-                      <div className="flex justify-center pt-2">
-                        <BoltBadge />
+                  {/* Footer */}
+                  <footer className="border-t border-gray-200 bg-white/50 backdrop-blur-sm">
+                    <div className="max-w-6xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
+                      <div className="text-center space-y-3 sm:space-y-4">
+                        <p className="text-xs sm:text-sm text-gray-600 px-4">
+                          {selectedLanguage === 'ko' ? 'AI가 당신의 사진을 창의적으로 해석합니다.' :
+                           selectedLanguage === 'en' ? 'AI creatively interprets your photos.' :
+                           selectedLanguage === 'zh' ? 'AI创造性地解释您的照片。' :
+                           'AI creatively interprets your photos.'}
+                        </p>
+                        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs sm:text-sm text-gray-500">
+                          <a href="#privacy" className="hover:text-gray-700 transition-colors">
+                            {selectedLanguage === 'ko' ? '개인정보' : selectedLanguage === 'en' ? 'Privacy' : selectedLanguage === 'zh' ? '隐私' : 'Privacy'}
+                          </a>
+                          <a href="#terms" className="hover:text-gray-700 transition-colors">
+                            {selectedLanguage === 'ko' ? '이용약관' : selectedLanguage === 'en' ? 'Terms' : selectedLanguage === 'zh' ? '条款' : 'Terms'}
+                          </a>
+                          <a href="#contact" className="hover:text-gray-700 transition-colors">
+                            {selectedLanguage === 'ko' ? '문의' : selectedLanguage === 'en' ? 'Contact' : selectedLanguage === 'zh' ? '联系' : 'Contact'}
+                          </a>
+                        </div>
+                        
+                        {/* Built with Bolt.new Badge */}
+                        <div className="flex justify-center pt-2">
+                          <BoltBadge />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </footer>
-              </>
-            } />
-          </Routes>
-        </div>
+                  </footer>
+                </>
+              } />
+            </Routes>
+          </div>
+        </ImageProvider>
       </ToastProvider>
     </Router>
   )

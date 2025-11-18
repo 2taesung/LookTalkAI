@@ -406,7 +406,7 @@ function generateFallbackAnalysis(persona: PersonaId, language: string): string 
   return fallbacks[persona][language as keyof typeof fallbacks[typeof persona]] || fallbacks[persona]['ko']
 }
 
-// 사용량 관리 - 20개로 증가
+// 사용량 관리 - 1000개로 증가
 export function getGuestUsage(): { count: number; resetDate: string } {
   // 테스트 모드에서는 항상 0 반환
   if (isTestingMode()) {
@@ -456,7 +456,7 @@ export function canAnalyzeAsGuest(): boolean {
   }
   
   try {
-    return getGuestUsage().count < 20 // 10개에서 20개로 증가
+    return getGuestUsage().count < 1000 // 1000개에서 20개로 증가
   } catch (error) {
     return true
   }

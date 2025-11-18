@@ -25,7 +25,7 @@ An interactive web service where users upload a photo, and an AI analyzes it fro
 - **Social Sharing**: Share to multiple platforms including KakaoTalk
 - **Responsive Design**: Works perfectly on desktop and mobile
 - **PWA Support**: Install as an app on any device
-- **Completely Free**: 20 free analyses per day
+- **Completely Free**: 1000 free analyses per day
 
 ## 🧠 AI Personas
 
@@ -76,7 +76,7 @@ An interactive web service where users upload a photo, and an AI analyzes it fro
 ## 🎯 Features
 
 ### Free Experience
-- ✅ 20 analyses per day
+- ✅ 1000 analyses per day
 - ✅ 11 unique AI personas
 - ✅ High-quality voice synthesis
 - ✅ AI vision analysis

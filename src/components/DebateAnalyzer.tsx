@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Crown, Zap, Share2, Loader2, Users, ArrowRightLeft, Plus, X, Shuffle, MessageSquare, Image as ImageIcon } from 'lucide-react';
+import { Sparkles, Crown, Zap, Share2, Loader2, Users, ArrowRightLeft, Plus, X, Shuffle, MessageSquare, Image as ImageIcon, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader } from './ui/Card';
 import { Button } from './ui/Button';
 import { PhotoUploader } from './PhotoUploader';
@@ -8,6 +8,7 @@ import { PersonaSelector } from './PersonaSelector';
 import { AudioPlayer } from './AudioPlayer';
 import { personas, getLocalizedPersonaInfo } from '../lib/personas';
 import { analyzePhotoDebate, canAnalyzeAsGuest, getGuestUsage } from '../lib/debateAnalysis';
+import { useImage } from '../contexts/ImageContext';
 import type { PersonaId } from '../lib/personas';
 import type { DebateResult } from '../lib/debateAnalysis';
 
@@ -31,7 +32,7 @@ interface DebateAnalyzerProps {
 }
 
 export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
-  const [selectedImage, setSelectedImage] = useState<string>('');
+  const { uploadedImage, setUploadedImage } = useImage();
   const [selectedPersona1, setSelectedPersona1] = useState<PersonaId>('witty-entertainer');
   const [selectedPersona2, setSelectedPersona2] = useState<PersonaId>('art-critic');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -42,6 +43,7 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
   const [showPersona1Selector, setShowPersona1Selector] = useState(false);
   const [showPersona2Selector, setShowPersona2Selector] = useState(false);
   const [currentStep, setCurrentStep] = useState<string>('');
+  const [showProcessInfo, setShowProcessInfo] = useState(false);
 
   // 분석 버튼 참조를 위한 ref
   const analyzeButtonRef = useRef<HTMLDivElement>(null);
@@ -64,9 +66,14 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
     }
   };
 
+  // 페이지 로드 시 스크롤을 맨 위로 이동
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   // 이미지가 선택되었을 때 페르소나 선택 섹션으로 스크롤
   useEffect(() => {
-    if (selectedImage && analyzeButtonRef.current) {
+    if (uploadedImage && analyzeButtonRef.current) {
       setTimeout(() => {
         const element = analyzeButtonRef.current;
         if (element) {
@@ -81,7 +88,7 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
         }
       }, 300);
     }
-  }, [selectedImage]);
+  }, [uploadedImage]);
 
   // 분석 시작 시 분석 상태 영역으로 스크롤
   useEffect(() => {
@@ -94,7 +101,7 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
   }, [isAnalyzing]);
 
   const handleAnalyze = async () => {
-    if (!selectedImage || !canAnalyze) return;
+    if (!uploadedImage || !canAnalyze) return;
 
     setIsAnalyzing(true);
     setError(null);
@@ -103,9 +110,6 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
     setCurrentStep('');
 
     try {
-      console.log('🎭 이미지 기반 순차적 토론 분석 시작...');
-      
-      // 진행 상황 시뮬레이션
       const steps = [
         getText('이미지 분석 중...', 'Analyzing image...', '正在分析图像...'),
         getText('이미지 내용 파악 중...', 'Understanding image content...', '正在理解图像内容...'),
@@ -127,7 +131,7 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
       const result = await analyzePhotoDebate({
         persona1: selectedPersona1,
         persona2: selectedPersona2,
-        imageData: selectedImage,
+        imageData: uploadedImage,
         language: selectedLanguage,
       });
 
@@ -136,9 +140,7 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
       
       setDebateResult(result);
       setShouldAutoPlay(true);
-      console.log('✅ 이미지 기반 순차적 토론 분석 완료!');
     } catch (err) {
-      console.error('❌ 토론 분석 실패:', err);
       setError(err instanceof Error ? err.message : getText('토론 분석에 실패했습니다', 'Debate analysis failed', '辩论分析失败'));
     } finally {
       setIsAnalyzing(false);
@@ -147,20 +149,17 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
   };
 
   const handleCancelAnalysis = () => {
-    console.log('🛑 토론 분석 취소됨');
     setIsAnalyzing(false);
     setCurrentStep('');
   };
 
   const handleShare = async () => {
-    if (!debateResult || !selectedImage || isSharing) return;
+    if (!debateResult || !uploadedImage || isSharing) return;
 
     setIsSharing(true);
     try {
-      console.log('🔗 Supabase에 토론 데이터 저장 시작...');
-
       // 1. 이미지를 Storage에 업로드
-      const imageBlob = base64ToBlob(selectedImage);
+      const imageBlob = base64ToBlob(uploadedImage);
       const imageFilePath = `public/debate-image-${Date.now()}.png`;
       const { data: imageUploadData, error: imageError } = await supabase.storage
         .from('media')
@@ -180,7 +179,7 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
           const response = await fetch(debateResult.audioUrl);
           audioFile = await response.blob();
         } catch (error) {
-          console.error('❌ Blob URL에서 데이터 추출 실패:', error);
+          console.error('❌ Blob URL에서 데이터 추출 실패');
         }
       }
       
@@ -205,7 +204,7 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
         .from('media')
         .getPublicUrl(audioFilePath);
 
-      // 3. DB에 저장할 데이터 정리
+      // 3. DB에 저장할 데이터 정리 (user_id는 createShareableContent에서 자동 처리)
       const contentToSave = {
         image_url: imagePublicUrl,
         audio_url: audioPublicUrl,
@@ -220,13 +219,10 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
         throw new Error("DB 저장 후 ID를 받지 못했습니다.");
       }
 
-      console.log(`✅ 토론 공유 링크 생성 완료! ID: ${newShareId}`);
-
       // 5. 공유 페이지로 이동
       navigate(`/shared/${newShareId}`);
 
     } catch (error) {
-      console.error('❌ 토론 공유 실패:', error);
       const errorMessage = error instanceof Error ? error.message : getText('공유에 실패했습니다', 'Failed to share', '分享失败');
       alert(errorMessage);
     } finally {
@@ -248,13 +244,13 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
   };
 
   const handleClearImage = () => {
-    setSelectedImage('');
+    setUploadedImage(null);
     setDebateResult(null);
     setError(null);
   };
 
   const handleImageSelect = (imageData: string) => {
-    setSelectedImage(imageData);
+    setUploadedImage(imageData);
     setError(null);
     setDebateResult(null);
   };
@@ -274,33 +270,52 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
     }
   };
 
+  // 모바일 감지
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
+
   // 토론 모드용 간소화된 PersonaCard 컴포넌트
   const PersonaCard = ({ 
     persona, 
     isSelected, 
     onClick, 
-    position 
+    position,
+    onChangeClick,
+    isChanging
   }: { 
     persona: PersonaId; 
     isSelected: boolean; 
     onClick: () => void;
     position: 'left' | 'right';
+    onChangeClick: () => void;
+    isChanging: boolean;
   }) => {
     const personaData = personas.find(p => p.id === persona);
     const localizedInfo = personaData ? getLocalizedPersonaInfo(personaData, selectedLanguage) : null;
     
     return (
       <div 
-        className={`relative p-3 rounded-xl border-2 cursor-pointer transition-all duration-300 transform-gpu ${
+        className={`relative p-3 rounded-xl border-2 transition-all duration-300 transform-gpu ${
           isSelected 
             ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-blue-50 shadow-lg' 
             : 'border-gray-200 hover:border-purple-300 bg-white hover:shadow-md hover:scale-105'
         }`}
-        onClick={onClick}
       >
         <div className="flex items-center space-x-2">
-          <div className="text-2xl">{personaData?.avatar}</div>
-          <div className="flex-1 min-w-0">
+          <div className="text-2xl cursor-pointer" onClick={onClick}>{personaData?.avatar}</div>
+          <div className="flex-1 min-w-0 cursor-pointer" onClick={onClick}>
             <h3 className="font-semibold text-gray-900 text-xs sm:text-sm truncate">
               {localizedInfo?.name}
             </h3>
@@ -308,6 +323,12 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
               {localizedInfo?.description}
             </p>
           </div>
+          <button
+            onClick={onChangeClick}
+            className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-md transition-colors text-gray-600 hover:text-gray-800"
+          >
+            {isChanging ? getText('닫기', 'Close', '关闭') : getText('변경', 'Change', '更改')}
+          </button>
         </div>
       </div>
     );
@@ -385,7 +406,7 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
         <CardContent>
           <PhotoUploader
             onImageSelect={handleImageSelect}
-            selectedImage={selectedImage}
+            selectedImage={uploadedImage || ''}
             onClearImage={handleClearImage}
             disabled={isAnalyzing || isSharing}
             language={selectedLanguage}
@@ -393,13 +414,13 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
         </CardContent>
       </Card>
 
-      {selectedImage && (
+      {uploadedImage && (
         <Card ref={analyzeButtonRef}>
           <CardHeader>
             <div className="flex items-center justify-between">
               <h2 className="text-lg sm:text-xl font-semibold flex items-center space-x-2">
                 <span>🎭</span>
-                <span>{getText('토론 페르소나 선택', 'Choose Debate Personas', '选择辩论角色')}</span>
+                <span>{getText('토론 페르소나', 'Debate Personas', '辩论角色')}</span>
               </h2>
               <div className="flex items-center space-x-2">
                 <Button
@@ -426,135 +447,163 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* 페르소나 선택 카드들 - 토론 모드에 최적화된 레이아웃 */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-blue-700">
-                    {getText('첫 번째 페르소나', 'First Persona', '第一个角色')}
-                  </h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowPersona1Selector(!showPersona1Selector)}
-                    className="text-xs"
-                    disabled={isAnalyzing || isSharing}
-                  >
-                    {showPersona1Selector ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-                    <span className="ml-1">{getText('변경', 'Change', '更改')}</span>
-                  </Button>
+            {/* 반응형 페르소나 레이아웃 */}
+            <div className="space-y-4">
+              {/* 데스크톱: 좌우 배치, 모바일: 상하 배치 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 첫 번째 페르소나 */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-blue-700">
+                      {getText('첫 번째 페르소나', 'First Persona', '第一个角色')}
+                    </h3>
+                  </div>
+                  
+                  <PersonaCard
+                    persona={selectedPersona1}
+                    isSelected={true}
+                    onClick={() => {}}
+                    position="left"
+                    onChangeClick={() => setShowPersona1Selector(!showPersona1Selector)}
+                    isChanging={showPersona1Selector}
+                  />
+                  
+                  {showPersona1Selector && (
+                    <div className="animate-in slide-in-from-top-2 duration-300">
+                      <div className="p-2 bg-white rounded-lg border border-gray-200 shadow-lg">
+                        <PersonaSelector
+                          selectedPersona={selectedPersona1}
+                          onSelect={(persona) => {
+                            setSelectedPersona1(persona);
+                            setShowPersona1Selector(false);
+                          }}
+                          disabled={isAnalyzing || isSharing}
+                          language={selectedLanguage}
+                          isDebateMode={true}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
-                <PersonaCard
-                  persona={selectedPersona1}
-                  isSelected={true}
-                  onClick={() => setShowPersona1Selector(!showPersona1Selector)}
-                  position="left"
-                />
-                
-                {showPersona1Selector && (
-                  <div className="animate-in slide-in-from-top-2 duration-300">
-                    <div className="p-2 bg-white rounded-lg border border-gray-200 shadow-lg">
-                      <PersonaSelector
-                        selectedPersona={selectedPersona1}
-                        onSelect={(persona) => {
-                          setSelectedPersona1(persona);
-                          setShowPersona1Selector(false);
-                        }}
-                        disabled={isAnalyzing || isSharing}
-                        language={selectedLanguage}
-                        isDebateMode={true}
-                      />
-                    </div>
+                {/* 모바일에서만 VS 표시 (첫 번째와 두 번째 페르소나 사이) */}
+                <div className="md:hidden flex items-center justify-center">
+                  <div className="flex items-center space-x-4 bg-gradient-to-r from-purple-100 to-blue-100 px-6 py-3 rounded-full border-2 border-purple-200">
+                    <div className="w-8 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                    <span className="text-lg font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                      VS
+                    </span>
+                    <div className="w-8 h-0.5 bg-gradient-to-r from-purple-500 to-red-500"></div>
                   </div>
-                )}
+                </div>
+                
+                {/* 두 번째 페르소나 */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-red-700">
+                      {getText('두 번째 페르소나', 'Second Persona', '第二个角色')}
+                    </h3>
+                  </div>
+                  
+                  <PersonaCard
+                    persona={selectedPersona2}
+                    isSelected={true}
+                    onClick={() => {}}
+                    position="right"
+                    onChangeClick={() => setShowPersona2Selector(!showPersona2Selector)}
+                    isChanging={showPersona2Selector}
+                  />
+                  
+                  {showPersona2Selector && (
+                    <div className="animate-in slide-in-from-top-2 duration-300">
+                      <div className="p-2 bg-white rounded-lg border border-gray-200 shadow-lg">
+                        <PersonaSelector
+                          selectedPersona={selectedPersona2}
+                          onSelect={(persona) => {
+                            setSelectedPersona2(persona);
+                            setShowPersona2Selector(false);
+                          }}
+                          disabled={isAnalyzing || isSharing}
+                          language={selectedLanguage}
+                          isDebateMode={true}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-red-700">
-                    {getText('두 번째 페르소나', 'Second Persona', '第二个角色')}
-                  </h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowPersona2Selector(!showPersona2Selector)}
-                    className="text-xs"
-                    disabled={isAnalyzing || isSharing}
-                  >
-                    {showPersona2Selector ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-                    <span className="ml-1">{getText('변경', 'Change', '更改')}</span>
-                  </Button>
+              {/* 데스크톱에서만 VS 표시 (두 페르소나 아래) */}
+              <div className="hidden md:flex items-center justify-center">
+                <div className="flex items-center space-x-4 bg-gradient-to-r from-purple-100 to-blue-100 px-6 py-3 rounded-full border-2 border-purple-200">
+                  <div className="w-8 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                  <span className="text-lg font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                    VS
+                  </span>
+                  <div className="w-8 h-0.5 bg-gradient-to-r from-purple-500 to-red-500"></div>
                 </div>
-                
-                <PersonaCard
-                  persona={selectedPersona2}
-                  isSelected={true}
-                  onClick={() => setShowPersona2Selector(!showPersona2Selector)}
-                  position="right"
-                />
-                
-                {showPersona2Selector && (
-                  <div className="animate-in slide-in-from-top-2 duration-300">
-                    <div className="p-2 bg-white rounded-lg border border-gray-200 shadow-lg">
-                      <PersonaSelector
-                        selectedPersona={selectedPersona2}
-                        onSelect={(persona) => {
-                          setSelectedPersona2(persona);
-                          setShowPersona2Selector(false);
-                        }}
-                        disabled={isAnalyzing || isSharing}
-                        language={selectedLanguage}
-                        isDebateMode={true}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {/* VS 표시 */}
-            <div className="flex items-center justify-center">
-              <div className="flex items-center space-x-4 bg-gradient-to-r from-purple-100 to-blue-100 px-6 py-3 rounded-full border-2 border-purple-200">
-                <div className="w-8 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500"></div>
-                <span className="text-lg font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                  VS
-                </span>
-                <div className="w-8 h-0.5 bg-gradient-to-r from-purple-500 to-red-500"></div>
               </div>
             </div>
 
-            {/* 이미지 기반 토론 설명 */}
-            <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
-              <h4 className="font-medium text-blue-900 mb-2 flex items-center space-x-2">
-                <ImageIcon className="w-4 h-4" />
-                <span>{getText('이미지 기반 토론 방식', 'Image-based Debate Process', '基于图像的辩论过程')}</span>
-              </h4>
-              <div className="text-xs text-blue-700 space-y-1">
-                <p>1. {getText('AI가 업로드된 사진의 내용을 상세히 분석', 'AI analyzes the uploaded photo content in detail', 'AI详细分析上传照片的内容')}</p>
-                <p>2. {getText(`${localizedPersona1Info?.name}가 사진에 대한 첫 번째 의견 제시`, `${localizedPersona1Info?.name} presents first opinion about the photo`, `${localizedPersona1Info?.name}对照片提出第一个观点`)}</p>
-                <p>3. {getText(`${localizedPersona2Info?.name}가 사진 내용을 바탕으로 응답 및 반박`, `${localizedPersona2Info?.name} responds and counters based on photo content`, `${localizedPersona2Info?.name}基于照片内容回应和反驳`)}</p>
-                <p>4. {getText('사진의 구체적인 요소들(색상, 구도, 피사체 등)을 언급하며 토론', 'Debate mentioning specific photo elements (colors, composition, subjects, etc.)', '提及照片的具体元素（颜色、构图、主体等）进行辩论')}</p>
-                <p>5. {getText('각 발언이 개별 음성으로 합성되어 하나의 오디오로 믹싱', 'Each statement is synthesized individually and mixed into one audio', '每个发言单独合成语音并混合成一个音频')}</p>
-              </div>
+            {/* 이미지 기반 토론 설명 - 모바일 최적화 */}
+            <div className="border border-blue-200 rounded-lg overflow-hidden">
+              <button 
+                onClick={() => setShowProcessInfo(!showProcessInfo)}
+                className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 transition-colors"
+              >
+                <div className="flex items-center space-x-2">
+                  <Info className="w-4 h-4 text-blue-600" />
+                  <h4 className="font-medium text-blue-900 text-sm">
+                    {getText('이미지 기반 토론 방식', 'Image-based Debate Process', '基于图像的辩论过程')}
+                  </h4>
+                </div>
+                {showProcessInfo ? (
+                  <ChevronUp className="w-4 h-4 text-blue-600" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-blue-600" />
+                )}
+              </button>
+              
+              {showProcessInfo && (
+                <div className="p-3 bg-white border-t border-blue-100">
+                  <div className="text-xs text-blue-700 space-y-2">
+                    <div className="flex items-start space-x-2">
+                      <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0 mt-0.5">1</span>
+                      <span>{getText('AI가 업로드된 사진의 내용을 상세히 분석', 'AI analyzes the uploaded photo content in detail', 'AI详细分析上传照片的内容')}</span>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <span className="w-5 h-5 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0 mt-0.5">2</span>
+                      <span>{getText(`${localizedPersona1Info?.name}가 사진에 대한 첫 번째 의견 제시`, `${localizedPersona1Info?.name} presents first opinion about the photo`, `${localizedPersona1Info?.name}对照片提出第一个观点`)}</span>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <span className="w-5 h-5 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0 mt-0.5">3</span>
+                      <span>{getText(`${localizedPersona2Info?.name}가 사진 내용을 바탕으로 응답 및 반박`, `${localizedPersona2Info?.name} responds and counters based on photo content`, `${localizedPersona2Info?.name}基于照片内容回应和反驳`)}</span>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <span className="w-5 h-5 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0 mt-0.5">4</span>
+                      <span>{getText('사진의 구체적인 요소들(색상, 구도, 피사체 등)을 언급하며 토론', 'Debate mentioning specific photo elements (colors, composition, subjects, etc.)', '提及照片的具体元素（颜色、构图、主体等）进行辩论')}</span>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <span className="w-5 h-5 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0 mt-0.5">5</span>
+                      <span>{getText('각 발언이 개별 음성으로 합성되어 하나의 오디오로 믹싱', 'Each statement is synthesized individually and mixed into one audio', '每个发言单独合成语音并混合成一个音频')}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* 토론 시작 버튼 */}
             <div className="space-y-4">
               <Button
                 onClick={handleAnalyze}
-                disabled={!selectedImage || !canAnalyze || isAnalyzing || isSharing || selectedPersona1 === selectedPersona2}
+                disabled={!uploadedImage || !canAnalyze || isAnalyzing || isSharing || selectedPersona1 === selectedPersona2}
                 size="lg"
                 className="w-full text-sm sm:text-base bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
               >
                 <Zap className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 {selectedPersona1 === selectedPersona2 
                   ? getText('다른 페르소나를 선택해주세요', 'Please select different personas', '请选择不同的角色')
-                  : getText(
-                      `🎭 사진 기반 ${localizedPersona1Info?.name} vs ${localizedPersona2Info?.name} 토론 시작!`,
-                      `🎭 Start Photo-based ${localizedPersona1Info?.name} vs ${localizedPersona2Info?.name} Debate!`,
-                      `🎭 开始基于照片的${localizedPersona1Info?.name} vs ${localizedPersona2Info?.name}辩论！`
-                    )
+                  : getText('토론 시작', 'Start Debate', '开始辩论')
                 }
               </Button>
               
@@ -568,9 +617,9 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
                       </h3>
                       <p className="text-xs sm:text-sm text-orange-700 mt-1">
                         {getText(
-                          '오늘 20회 무료 분석을 모두 사용했습니다. 내일 다시 오세요!',
-                          'You have used all 20 free analyses today. Come back tomorrow!',
-                          '您今天已用完20次免费分析。明天再来吧！'
+                          '오늘 1000회 무료 분석을 모두 사용했습니다. 내일 다시 오세요!',
+                          'You have used all 1000 free analyses today. Come back tomorrow!',
+                          '您今天已用完1000次免费分析。明天再来吧！'
                         )}
                       </p>
                     </div>
@@ -585,7 +634,7 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
       {isAnalyzing && (
         <div ref={analysisStatusRef}>
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3 sm:pb-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold flex items-center space-x-2">
                   <div className="animate-spin w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full"></div>
@@ -668,7 +717,7 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
               autoPlay={shouldAutoPlay}
               language={selectedLanguage}
               analysisData={{
-                imageUrl: selectedImage || '',
+                imageUrl: uploadedImage || '',
                 script: debateResult.script,
                 persona: `${selectedPersona1}-vs-${selectedPersona2}`,
                 timestamp: Date.now(),
@@ -691,16 +740,16 @@ export function DebateAnalyzer({ selectedLanguage }: DebateAnalyzerProps) {
       <div className="text-center text-xs sm:text-sm text-gray-500 px-2">
         <p>
           {getText(
-            `무료 사용: 오늘 ${guestUsage.count}/20 분석`,
-            `Free usage: ${guestUsage.count}/20 analyses today`,
-            `免费使用：今天 ${guestUsage.count}/20 次分析`
+            `무료 사용: 오늘 ${guestUsage.count}/1000 분석`,
+            `Free usage: ${guestUsage.count}/1000 analyses today`,
+            `免费使用：今天 ${guestUsage.count}/1000 次分析`
           )}
         </p>
         <p className="mt-1">
           {getText(
             'AI 이미지 기반 토론 • 페르소나 대화 • 음성 믹싱 • 완전 무료',
             'AI Image-based Debate • Persona Conversation • Voice Mixing • Completely Free',
-            'AI基于图像的辩论 • 角色对话 • 语音混合 • 完全免费'
+            'AI基于图像的辩论 • 角色对话 • 语音混合 • 완전 무료'
           )}
         </p>
       </div>

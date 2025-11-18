@@ -8,6 +8,7 @@ import { PersonaSelector } from './PersonaSelector';
 import { AudioPlayer } from './AudioPlayer';
 import { personas, getLocalizedPersonaInfo } from '../lib/personas';
 import { analyzePhoto, canAnalyzeAsGuest, getGuestUsage } from '../lib/photoAnalysis';
+import { useImage } from '../contexts/ImageContext';
 import type { PersonaId } from '../lib/personas';
 import type { AnalysisResult } from '../lib/photoAnalysis';
 
@@ -31,7 +32,7 @@ interface PhotoAnalyzerProps {
 }
 
 export function PhotoAnalyzer({ selectedLanguage }: PhotoAnalyzerProps) {
-  const [selectedImage, setSelectedImage] = useState<string>('');
+  const { uploadedImage, setUploadedImage } = useImage();
   const [selectedPersona, setSelectedPersona] = useState<PersonaId>('witty-entertainer');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -60,7 +61,7 @@ export function PhotoAnalyzer({ selectedLanguage }: PhotoAnalyzerProps) {
 
   // 이미지가 선택되었을 때 분석 버튼으로 스크롤 (화면 하단에서 1/5 지점에 위치)
   useEffect(() => {
-    if (selectedImage && analyzeButtonRef.current) {
+    if (uploadedImage && analyzeButtonRef.current) {
       // 약간의 지연을 두어 UI 업데이트가 완료된 후 스크롤
       setTimeout(() => {
         const element = analyzeButtonRef.current;
@@ -76,7 +77,7 @@ export function PhotoAnalyzer({ selectedLanguage }: PhotoAnalyzerProps) {
         }
       }, 300);
     }
-  }, [selectedImage]);
+  }, [uploadedImage]);
 
   // 분석 시작 시 분석 상태 영역으로 스크롤
   useEffect(() => {
@@ -89,7 +90,7 @@ export function PhotoAnalyzer({ selectedLanguage }: PhotoAnalyzerProps) {
   }, [isAnalyzing]);
 
   const handleAnalyze = async () => {
-    if (!selectedImage || !canAnalyze) return;
+    if (!uploadedImage || !canAnalyze) return;
 
     setIsAnalyzing(true);
     setError(null);
@@ -97,17 +98,14 @@ export function PhotoAnalyzer({ selectedLanguage }: PhotoAnalyzerProps) {
     setAnalysisResult(null);
 
     try {
-      console.log('📸 AI 사진 분석 시작...');
       const result = await analyzePhoto({
         persona: selectedPersona,
-        imageData: selectedImage,
+        imageData: uploadedImage,
         language: selectedLanguage,
       });
       setAnalysisResult(result);
       setShouldAutoPlay(true);
-      console.log('✅ 사진 분석 완료!');
     } catch (err) {
-      console.error('❌ 분석 실패:', err);
       setError(err instanceof Error ? err.message : getText('분석에 실패했습니다', 'Analysis failed', '分析失败'));
     } finally {
       setIsAnalyzing(false);
@@ -115,19 +113,16 @@ export function PhotoAnalyzer({ selectedLanguage }: PhotoAnalyzerProps) {
   };
 
   const handleCancelAnalysis = () => {
-    console.log('🛑 사진 분석 취소됨');
     setIsAnalyzing(false);
   };
 
   const handleShare = async () => {
-    if (!analysisResult || !selectedImage || isSharing) return;
+    if (!analysisResult || !uploadedImage || isSharing) return;
 
     setIsSharing(true);
     try {
-      console.log('🔗 Supabase에 공유 데이터 저장 시작...');
-
       // 1. 이미지(base64)를 파일로 변환하여 Storage에 업로드
-      const imageBlob = base64ToBlob(selectedImage);
+      const imageBlob = base64ToBlob(uploadedImage);
       const imageFilePath = `public/image-${Date.now()}.png`;
       const { data: imageUploadData, error: imageError } = await supabase.storage
         .from('media')
@@ -144,11 +139,9 @@ export function PhotoAnalyzer({ selectedLanguage }: PhotoAnalyzerProps) {
       
       // audioBlob이 없지만 audioUrl이 blob URL인 경우, blob에서 데이터 추출
       if (!audioFile && analysisResult.audioUrl && analysisResult.audioUrl.startsWith('blob:')) {
-        console.log('🔄 AudioBlob이 없음, blob URL에서 데이터 추출 중...');
         try {
           const response = await fetch(analysisResult.audioUrl);
           audioFile = await response.blob();
-          console.log('✅ Blob URL에서 오디오 데이터 추출 성공');
         } catch (error) {
           console.error('❌ Blob URL에서 데이터 추출 실패:', error);
         }
@@ -159,15 +152,8 @@ export function PhotoAnalyzer({ selectedLanguage }: PhotoAnalyzerProps) {
         throw new Error('오디오 Blob이 생성되지 않았습니다.');
       }
       
-      console.log('🎵 오디오 파일 정보:', {
-        size: audioFile.size,
-        type: audioFile.type,
-        sizeInKB: Math.round(audioFile.size / 1024)
-      });
-      
       // 오디오 파일이 너무 작으면 (1KB 미만) 에러 처리
       if (audioFile.size < 1024) {
-        console.warn('⚠️ 오디오 파일이 너무 작습니다. 실제 오디오 데이터가 없을 수 있습니다.');
         throw new Error('오디오 파일이 올바르게 생성되지 않았습니다.');
       }
       
@@ -181,17 +167,14 @@ export function PhotoAnalyzer({ selectedLanguage }: PhotoAnalyzerProps) {
         });
 
       if (audioError) {
-        console.error('❌ 오디오 업로드 상세 에러:', audioError);
         throw new Error(`오디오 업로드 실패: ${audioError.message}`);
       }
-      
-      console.log('✅ 오디오 업로드 성공:', audioUploadData);
 
       const { data: { publicUrl: audioPublicUrl } } = supabase.storage
         .from('media')
         .getPublicUrl(audioFilePath);
 
-      // 3. DB에 저장할 최종 데이터 정리
+      // 3. DB에 저장할 최종 데이터 정리 (user_id는 createShareableContent에서 자동 처리)
       const contentToSave = {
         image_url: imagePublicUrl,
         audio_url: audioPublicUrl,
@@ -205,8 +188,6 @@ export function PhotoAnalyzer({ selectedLanguage }: PhotoAnalyzerProps) {
       if (!newShareId) {
         throw new Error("DB 저장 후 ID를 받지 못했습니다.");
       }
-
-      console.log(`✅ 공유 링크 생성 완료! ID: ${newShareId}`);
 
       // 5. 생성된 ID를 이용해 공유 페이지로 이동
       navigate(`/shared/${newShareId}`);
@@ -234,13 +215,13 @@ export function PhotoAnalyzer({ selectedLanguage }: PhotoAnalyzerProps) {
   };
 
   const handleClearImage = () => {
-    setSelectedImage('');
+    setUploadedImage(null);
     setAnalysisResult(null);
     setError(null);
   };
 
   const handleImageSelect = (imageData: string) => {
-    setSelectedImage(imageData);
+    setUploadedImage(imageData);
     // 이미지 선택 시 에러와 이전 결과 초기화
     setError(null);
     setAnalysisResult(null);
@@ -305,7 +286,7 @@ export function PhotoAnalyzer({ selectedLanguage }: PhotoAnalyzerProps) {
         <CardContent>
           <PhotoUploader
             onImageSelect={handleImageSelect}
-            selectedImage={selectedImage}
+            selectedImage={uploadedImage || ''}
             onClearImage={handleClearImage}
             disabled={isAnalyzing || isSharing}
             language={selectedLanguage}
@@ -313,7 +294,7 @@ export function PhotoAnalyzer({ selectedLanguage }: PhotoAnalyzerProps) {
         </CardContent>
       </Card>
 
-      {selectedImage && (
+      {uploadedImage && (
         <Card>
           <CardHeader>
             <h2 className="text-lg sm:text-xl font-semibold flex items-center space-x-2">
@@ -332,11 +313,11 @@ export function PhotoAnalyzer({ selectedLanguage }: PhotoAnalyzerProps) {
         </Card>
       )}
 
-      {selectedImage && (
+      {uploadedImage && (
         <div ref={analyzeButtonRef} className="space-y-4">
           <Button
             onClick={handleAnalyze}
-            disabled={!selectedImage || !canAnalyze || isAnalyzing || isSharing}
+            disabled={!uploadedImage || !canAnalyze || isAnalyzing || isSharing}
             size="lg"
             className="w-full text-sm sm:text-base"
           >
@@ -357,9 +338,9 @@ export function PhotoAnalyzer({ selectedLanguage }: PhotoAnalyzerProps) {
                   </h3>
                   <p className="text-xs sm:text-sm text-orange-700 mt-1">
                     {getText(
-                      '오늘 20회 무료 분석을 모두 사용했습니다. 내일 다시 오세요!',
-                      'You have used all 20 free analyses today. Come back tomorrow!',
-                      '您今天已用完20次免费分析。明天再来吧！'
+                      '오늘 1000회 무료 분석을 모두 사용했습니다. 내일 다시 오세요!',
+                      'You have used all 1000 free analyses today. Come back tomorrow!',
+                      '您今天已用完1000次免费分析！'
                     )}
                   </p>
                 </div>
@@ -433,7 +414,7 @@ export function PhotoAnalyzer({ selectedLanguage }: PhotoAnalyzerProps) {
               autoPlay={shouldAutoPlay}
               language={selectedLanguage}
               analysisData={{
-                imageUrl: selectedImage || '',
+                imageUrl: uploadedImage || '',
                 script: analysisResult.script,
                 persona: selectedPersona || '',
                 timestamp: Date.now(),
@@ -456,9 +437,9 @@ export function PhotoAnalyzer({ selectedLanguage }: PhotoAnalyzerProps) {
       <div className="text-center text-xs sm:text-sm text-gray-500 px-2">
         <p>
           {getText(
-            `무료 사용: 오늘 ${guestUsage.count}/20 분석`,
-            `Free usage: ${guestUsage.count}/20 analyses today`,
-            `免费使用：今天 ${guestUsage.count}/20 次分析`
+            `무료 사용: 오늘 ${guestUsage.count}/1000 분석`,
+            `Free usage: ${guestUsage.count}/1000 analyses today`,
+            `免费使用：今天 ${guestUsage.count}/1000 次分析`
           )}
         </p>
         <p className="mt-1">

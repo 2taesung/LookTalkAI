@@ -683,7 +683,7 @@ export function canAnalyzeAsGuest(): boolean {
   }
   
   try {
-    return getGuestUsage().count < 20
+    return getGuestUsage().count < 1000
   } catch (error) {
     return true
   }
