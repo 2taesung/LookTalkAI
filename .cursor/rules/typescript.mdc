@@ -1,0 +1,35 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# TypeScript 사용
+
+## 기본 원칙
+- 모든 코드에 TypeScript 사용
+- types보다 interfaces 선호
+- enums 대신 maps 사용
+- TypeScript interfaces를 사용한 함수형 컴포넌트 사용
+
+## 컴포넌트 타입 정의
+```typescript
+interface ButtonProps {
+  variant?: 'primary' | 'secondary' | 'tertiary';
+  size?: 'sm' | 'md' | 'lg';
+  isFullWidth?: boolean;
+  isDisabled?: boolean;
+  onClick?: () => void;
+  children: React.ReactNode;
+}
+
+export default function Button({
+  variant = 'primary',
+  size = 'md',
+  isFullWidth = false,
+  isDisabled = false,
+  onClick,
+  children,
+}: ButtonProps) {
+  // 컴포넌트 로직
+}
+``` 

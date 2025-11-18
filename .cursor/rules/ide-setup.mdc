@@ -1,0 +1,86 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# IDE 설정 가이드
+
+이 문서는 AfterDoc-React 프로젝트를 위한 IDE 설정 및 권장 플러그인에 관한 가이드라인을 제공합니다.
+
+## VS Code 설정
+
+VS Code를 사용하는 경우 다음 설정과 확장을 권장합니다.
+
+### 권장 확장 프로그램
+
+- **Cursor**: AI 기반 코드 완성 및 생성 도구
+- **Biome**: 코드 포맷팅 및 린팅 도구
+- **TypeScript Vue Plugin (Volar)**: Vue 파일 지원
+- **Tailwind CSS IntelliSense**: Tailwind CSS 클래스 자동 완성
+- **GitLens**: Git 통합 확장
+
+### 워크스페이스 설정
+
+`.vscode/settings.json` 파일에 다음 설정을 추가합니다:
+
+```json
+{
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "editor.defaultFormatter": "biomejs.biome",
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "editor.tabSize": 2,
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true
+}
+```
+
+### 프로젝트 설정
+
+1. **코드 스타일**: EditorConfig를 사용하여 설정 (프로젝트 루트에 `.editorconfig` 파일 있음)
+2. **파일 인코딩**: UTF-8
+3. **행 구분자**: Unix 스타일 (LF)
+
+## .editorconfig 설정
+
+프로젝트 루트에 있는 `.editorconfig` 파일은 다양한 에디터 간에 일관된 코딩 스타일을 유지하는 데 도움이 됩니다:
+
+```
+root = true
+
+[*]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+max_line_length = 100
+
+[*.{js,jsx,ts,tsx}]
+indent_size = 2
+
+[*.json]
+indent_size = 2
+
+[*.{css,scss,less}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+```
+
+## 터미널 설정
+
+Zsh와 같은 쉘을 사용하면 pnpm 자동 완성을 설정하는 것이 좋습니다:
+
+```bash
+# ~/.zshrc 또는 ~/.bashrc에 추가
+source <(pnpm --zsh-completion)  # Zsh의 경우
+source <(pnpm --bash-completion)  # Bash의 경우
+```

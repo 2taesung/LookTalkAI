@@ -1,0 +1,72 @@
+---
+description: 컴포넌트를 생성하거나 수정할 때, 이 규칙을 반드시 참고하세요.
+globs: 
+alwaysApply: false
+---
+# 상태 관리와 데이터 가져오기
+
+## 기본 원칙
+- useEffect와 setState 최소화
+- React의 내장 hooks와 Jotai를 이용한 상태 관리 선호
+- 서버 데이터 가져오기와 캐싱에 Tanstack Query v5 사용
+
+## Jotai 사용
+- 전역 상태 관리에 Jotai 사용
+```typescript
+// [token.ts](mdc:apps/services/afterdoc-saas-web/src/states/token.ts) 를 예시로 참고
+import { atom } from 'jotai';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export const userAtom = atom<User | null>(null);
+```
+
+## Tanstack Query v5 사용
+- 데이터 가져오기, 캐싱, 서버 상태 업데이트에 Tanstack Query v5 사용
+```typescript
+import { useQuery, useMutation } from '@tanstack/react-query';
+
+// 데이터 가져오기
+const { data, isLoading } = useQuery({
+  queryKey: [QUERY_KEY.apiPatientsElListOrSearch, params] as const,
+  queryFn: ({ queryKey }) => fetchPatientsListOrSearch(queryKey[1]),
+});
+
+// 데이터 변경
+const mutation = useMutation({
+  mutationFn: updatePatient,
+  onSuccess: () => {
+    // 캐시 무효화 또는 업데이트
+    queryClient.invalidateQueries({ queryKey: ['patients', patientId] });
+  }
+});
+```
+
+## React-hook-form 사용
+- 폼 처리와 유효성 검사에 React-hook-form 사용
+```typescript
+import { useForm } from 'react-hook-form';
+
+interface LoginForm {
+  email: string;
+  password: string;
+}
+
+export default function LoginForm() {
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
+  
+  const onSubmit = (data: LoginForm) => {
+    // 로그인 처리 로직
+  };
+  
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      {/* 폼 필드 */}
+    </form>
+  );
+}
+```

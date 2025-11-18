@@ -1,0 +1,45 @@
+---
+description: 컴포넌트를 생성해야할 때 반드시 이 규칙을 참고하세요.
+globs: 
+alwaysApply: false
+---
+# React 컴포넌트 생성 규칙
+
+## 기본 프로세스
+- 컴포넌트의 목적, 기능, 디자인을 신중히 고려
+- 단계별로 천천히 생각하고 논리를 구성
+- 다음 위치에서 유사한 컴포넌트가 이미 존재하는지 반드시 확인:
+   - 작업 중인 파일이 apps/services/afterdoc-saas-web/*에 소속될 경우에만 packages/afterdoc-design-system/src/components 확인
+   - 이외의 경우에는 apps/services/{작업중인 파일이 속한 애플리케이션명}/src/shared/components/* 확인
+
+- 존재하지 않는 경우, 다음을 포함한 상세한 컴포넌트 생성:
+   - 컴포넌트 이름과 목적
+   - 원하는 props와 타입
+   - 스타일링의 경우, Tailwind CSS를 사용하고, [tailwind.config.js](mdc:packages/tailwind-base/tailwind.config.js) 를 반드시 참고해서 스타일링을 진행
+      - 일부 Scss의 효용이 훨씬 크다고 판단될 경우에 한해서만 예외적으로 Scss 사용
+   - 반드시 TypeScript 사용
+
+- 컴포넌트 패턴 준수:
+  - 컴포넌트는 PascalCase로 export default function 사용
+  - 중요한 내용에 대해서는 한국어 주석 포함
+  - 로직은 가급적이면 별도의 커스텀 훅을 통해 분리해서 사용함 
+  - 필요한 커스텀 로직이나 상태 관리 추가:
+   - 상태 관리에 Jotai 사용
+   - 폼 처리에는 React-hook-form 사용
+
+## 중요: 단순 재전달용 index.ts 파일 생성 금지
+- **컴포넌트/페이지에서 단순 재전달만 하는 index.ts 파일을 생성하지 말 것**
+- 프로젝트는 절대 경로를 사용한 직접 import 패턴을 사용함
+- 예시:
+  ```typescript
+  // ✅ 올바른 방식
+  import Button from 'afterdoc-hospital-mobile/components/Button/Button';
+  
+  // ❌ 잘못된 방식 (단순 재전달 index.ts)
+  // index.ts 파일에 export { default } from './Button'; 만 있는 경우
+  import Button from 'afterdoc-hospital-mobile/components/Button';
+  ```
+- index.ts를 만들어도 되는 경우:
+  - 패키지 진입점 (packages/*/index.ts)
+  - 여러 모듈을 묶어서 export (assets/icons/index.ts)
+  - 실제 로직이 포함된 경우

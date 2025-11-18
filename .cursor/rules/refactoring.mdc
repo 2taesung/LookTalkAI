@@ -1,0 +1,628 @@
+---
+description: When Agent Has to refactor code
+globs: 
+alwaysApply: false
+---
+# 리팩토링 가이드라인
+
+이 문서는 AfterDoc-React 프로젝트의 리팩토링 원칙과 절차에 관한 가이드라인을 제공합니다.
+
+## 리팩토링 기본 원칙
+
+### 핵심 원칙
+
+1. **기능 보존**: 리팩토링 전후의 기능적 동작이 동일해야 함
+2. **타입 안전성**: 타입 또는 린트 에러가 없어야 함 (경고는 허용)
+3. **점진적 변경**: 한 번에 대규모 변경보다 작은 단위로 변경 후 테스트
+4. **테스트 주도**: 변경 전후에 테스트를 실행하여 기능이 보존되는지 확인
+
+### 리팩토링 절차
+
+1. 현재 코드 분석 및 문제점 식별
+2. 리팩토링 계획 수립 및 범위 설정
+3. 적절한 테스트 작성 (없는 경우)
+4. 코드 변경 실행
+5. 테스트 실행 및 기능 확인
+6. 코드 리뷰 및 필요시 수정
+
+## 컴포넌트 리팩토링
+
+### 커스텀 훅 추출
+
+1. 컴포넌트 내 상태 관리 로직을 식별
+2. 관련 상태와 해당 로직을 커스텀 훅으로 추출
+3. `use-` 접두사로 시작하는 파일명 사용 (kebab-case)
+4. 추출한 훅의 반환 값에 적절한 타입 정의
+
+예시:
+
+```tsx
+// Before (Component.tsx)
+export default function Component() {
+  const [count, setCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const incrementCount = useCallback(() => {
+    setCount(prev => prev + 1);
+  }, []);
+  
+  const resetCount = useCallback(() => {
+    setCount(0);
+  }, []);
+  
+  // ... 컴포넌트 렌더링 로직
+}
+
+// After (use-counter.ts)
+export const useCounter = (initialCount = 0) => {
+  const [count, setCount] = useState(initialCount);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const incrementCount = useCallback(() => {
+    setCount(prev => prev + 1);
+  }, []);
+  
+  const resetCount = useCallback(() => {
+    setCount(0);
+  }, []);
+  
+  return {
+    count,
+    isLoading,
+    incrementCount,
+    resetCount,
+    setIsLoading
+  };
+};
+
+// After (Component.tsx)
+import { useCounter } from './hooks/use-counter';
+
+export default function Component() {
+  const {
+    count,
+    isLoading,
+    incrementCount,
+    resetCount
+  } = useCounter();
+  
+  // ... 컴포넌트 렌더링 로직
+}
+```
+
+### 컴포넌트 분리
+
+1. 독립적인 기능을 가진 UI 블록 식별
+2. 별도의 컴포넌트 파일로 분리
+3. 필요한 props 인터페이스 정의
+4. 폴더 구조는 `folder-structure.md` 규칙을 따름
+5. 컴포넌트를 내보내는 index.ts 파일은 만들지 않음
+
+예시:
+
+```tsx
+// Before (ParentComponent.tsx)
+export default function ParentComponent() {
+  // ... 부모 컴포넌트 로직
+  
+  return (
+    <div>
+      <h1>부모 컴포넌트</h1>
+      
+      {/* 이 부분을 분리 */}
+      <div className="card">
+        <h2>{user.name}</h2>
+        <p>{user.email}</p>
+        <button onClick={handleClick}>상세보기</button>
+      </div>
+    </div>
+  );
+}
+
+// After (components/UserCard/UserCard.tsx)
+interface UserCardProps {
+  name: string;
+  email: string;
+  onViewDetails: () => void;
+}
+
+export default function UserCard({ name, email, onViewDetails }: UserCardProps) {
+  return (
+    <div className="card">
+      <h2>{name}</h2>
+      <p>{email}</p>
+      <button onClick={onViewDetails}>상세보기</button>
+    </div>
+  );
+}
+
+// After (components/UserCard/index.ts)
+export { default } from './UserCard';
+
+// After (ParentComponent.tsx)
+import UserCard from './components/UserCard';
+
+export default function ParentComponent() {
+  // ... 부모 컴포넌트 로직
+  
+  return (
+    <div>
+      <h1>부모 컴포넌트</h1>
+      <UserCard
+        name={user.name}
+        email={user.email}
+        onViewDetails={handleClick}
+      />
+    </div>
+  );
+}
+```
+
+## 코드 개선 기법
+
+### 변수명 개선
+
+1. 명확하고 의미있는 변수명 사용
+2. 헝가리안 표기법 지양
+3. 불리언 변수는 `is`, `has`, `should` 등의 접두사 사용
+4. 배열은 복수형 이름 사용
+
+예시:
+
+```tsx
+// Before
+const d = new Date();
+const arr = ['apple', 'banana', 'orange'];
+const f = (x: number) => x * 2;
+const flag = user.age > 18;
+
+// After
+const currentDate = new Date();
+const fruits = ['apple', 'banana', 'orange'];
+const doubleNumber = (number: number) => number * 2;
+const isAdult = user.age > 18;
+```
+
+### 조건문 개선
+
+1. 복잡한 조건은 명명된 변수나 함수로 추출
+2. 중첩 조건문 대신 조기 반환(early return) 패턴 사용
+3. 삼항 연산자는 간단한 경우에만 사용
+
+예시:
+
+```tsx
+// Before
+function processUser(user) {
+  if (user) {
+    if (user.isActive) {
+      if (user.permissions.includes('admin')) {
+        // 관리자 처리 로직
+        return adminDashboard;
+      } else {
+        // 일반 사용자 처리 로직
+        return userDashboard;
+      }
+    } else {
+      return inactiveUserPage;
+    }
+  } else {
+    return loginPage;
+  }
+}
+
+// After
+function processUser(user) {
+  if (!user) return loginPage;
+  if (!user.isActive) return inactiveUserPage;
+  
+  const isAdmin = user.permissions.includes('admin');
+  return isAdmin ? adminDashboard : userDashboard;
+}
+```
+
+### 순수 함수 분리
+
+1. 부수 효과가 없는 순수 함수 추출
+2. 유틸리티 함수는 별도 파일로 분리
+3. 함수는 단일 책임 원칙을 따름
+
+예시:
+
+```tsx
+// Before
+function Component() {
+  const calculateTotal = (items) => {
+    return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  };
+  
+  // ... 컴포넌트 로직
+}
+
+// After (utils/calculate-total.ts)
+export const calculateTotal = (items) => {
+  return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+};
+
+// After (Component.tsx)
+import { calculateTotal } from './utils/calculate-total';
+
+function Component() {
+  // ... 컴포넌트 로직
+}
+```
+
+## 예제: 컴포넌트 리팩토링 적용
+
+### 리팩토링 전
+
+```tsx
+export default function ProductList() {
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/products');
+        const data = await response.json();
+        setProducts(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchProducts();
+  }, []);
+  
+  const filteredProducts = useMemo(() => {
+    if (selectedCategory === 'all') return products;
+    return products.filter(product => product.category === selectedCategory);
+  }, [products, selectedCategory]);
+  
+  return (
+    <div>
+      <h1>상품 목록</h1>
+      
+      <div className="categories">
+        <button onClick={() => setSelectedCategory('all')}>전체</button>
+        <button onClick={() => setSelectedCategory('electronics')}>전자기기</button>
+        <button onClick={() => setSelectedCategory('clothing')}>의류</button>
+      </div>
+      
+      {isLoading ? (
+        <p>로딩 중...</p>
+      ) : error ? (
+        <p>오류: {error}</p>
+      ) : (
+        <div className="product-grid">
+          {filteredProducts.map(product => (
+            <div key={product.id} className="product-card">
+              <img src={product.image} alt={product.name} />
+              <h3>{product.name}</h3>
+              <p>{product.price}원</p>
+              <button>장바구니에 추가</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+### 리팩토링 후
+
+```tsx
+// hooks/use-products.ts
+export const useProducts = () => {
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/products');
+        const data = await response.json();
+        setProducts(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchProducts();
+  }, []);
+  
+  return { products, isLoading, error };
+};
+
+// hooks/use-category-filter.ts
+export const useCategoryFilter = (products) => {
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  
+  const filteredProducts = useMemo(() => {
+    if (selectedCategory === 'all') return products;
+    return products.filter(product => product.category === selectedCategory);
+  }, [products, selectedCategory]);
+  
+  return { 
+    filteredProducts, 
+    selectedCategory, 
+    setSelectedCategory 
+  };
+};
+
+// components/CategorySelector/CategorySelector.tsx
+interface CategorySelectorProps {
+  selectedCategory: string;
+  onSelectCategory: (category: string) => void;
+}
+
+export default function CategorySelector({ 
+  selectedCategory, 
+  onSelectCategory 
+}: CategorySelectorProps) {
+  return (
+    <div className="categories">
+      <button 
+        className={selectedCategory === 'all' ? 'active' : ''} 
+        onClick={() => onSelectCategory('all')}
+      >
+        전체
+      </button>
+      <button 
+        className={selectedCategory === 'electronics' ? 'active' : ''} 
+        onClick={() => onSelectCategory('electronics')}
+      >
+        전자기기
+      </button>
+      <button 
+        className={selectedCategory === 'clothing' ? 'active' : ''} 
+        onClick={() => onSelectCategory('clothing')}
+      >
+        의류
+      </button>
+    </div>
+  );
+}
+
+// components/ProductCard/ProductCard.tsx
+interface ProductCardProps {
+  product: {
+    id: string;
+    name: string;
+    price: number;
+    image: string;
+  };
+}
+
+export default function ProductCard({ product }: ProductCardProps) {
+  return (
+    <div className="product-card">
+      <img src={product.image} alt={product.name} />
+      <h3>{product.name}</h3>
+      <p>{product.price}원</p>
+      <button>장바구니에 추가</button>
+    </div>
+  );
+}
+
+// ProductList.tsx
+import { useProducts } from './hooks/use-products';
+import { useCategoryFilter } from './hooks/use-category-filter';
+import CategorySelector from './components/CategorySelector';
+import ProductCard from './components/ProductCard';
+
+export default function ProductList() {
+  const { products, isLoading, error } = useProducts();
+  const { filteredProducts, selectedCategory, setSelectedCategory } = useCategoryFilter(products);
+  
+  if (isLoading) return <p>로딩 중...</p>;
+  if (error) return <p>오류: {error}</p>;
+  
+  return (
+    <div>
+      <h1>상품 목록</h1>
+      
+      <CategorySelector
+        selectedCategory={selectedCategory}
+        onSelectCategory={setSelectedCategory}
+      />
+      
+      <div className="product-grid">
+        {filteredProducts.map(product => (
+          <ProductCard key={product.id} product={product} />
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+## 테스트 코드와 함께 리팩토링하기
+
+리팩토링 시에는 기존 기능이 그대로 유지되는지 확인하기 위한 테스트 코드를 작성하는 것이 중요합니다. 아래는 리팩토링 전/후에 테스트 코드를 활용하는 방법을 예시로 설명합니다.
+
+### 테스트 주도 리팩토링 절차
+
+1. 리팩토링 전 테스트 코드 작성 (또는 기존 테스트 확인)
+2. 테스트가 통과하는지 확인
+3. 코드 리팩토링 수행
+4. 리팩토링 후 테스트 재실행으로 기능 검증
+5. 필요시 테스트 코드도 리팩토링 (구현 세부사항에 의존하는 경우)
+
+### 컴포넌트 리팩토링 테스트 예시
+
+```tsx
+// ProductList.test.tsx (리팩토링 전)
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import ProductList from './ProductList';
+
+// API 모킹
+vi.mock('path/to/api', () => ({
+  fetchProducts: vi.fn().mockResolvedValue([
+    { id: '1', name: '노트북', price: 1000000, category: 'electronics', image: 'laptop.jpg' },
+    { id: '2', name: '티셔츠', price: 30000, category: 'clothing', image: 'tshirt.jpg' }
+  ])
+}));
+
+describe('ProductList', () => {
+  it('상품 목록을 렌더링한다', async () => {
+    render(<ProductList />);
+    
+    // 로딩 상태 확인
+    expect(screen.getByText('로딩 중...')).toBeInTheDocument();
+    
+    // 상품 로드 후 확인
+    await waitFor(() => {
+      expect(screen.getByText('노트북')).toBeInTheDocument();
+      expect(screen.getByText('티셔츠')).toBeInTheDocument();
+      expect(screen.getByText('1000000원')).toBeInTheDocument();
+    });
+  });
+
+  it('카테고리 필터링이 작동한다', async () => {
+    render(<ProductList />);
+    
+    // 상품 로드 기다림
+    await waitFor(() => {
+      expect(screen.getByText('노트북')).toBeInTheDocument();
+    });
+    
+    // 의류 카테고리 선택
+    const user = userEvent.setup();
+    await user.click(screen.getByText('의류'));
+    
+    // 필터링 확인
+    expect(screen.queryByText('노트북')).not.toBeInTheDocument();
+    expect(screen.getByText('티셔츠')).toBeInTheDocument();
+  });
+});
+
+// ProductList.test.tsx (리팩토링 후)
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import ProductList from './ProductList';
+
+// 모듈 모킹
+vi.mock('./hooks/use-products', () => ({
+  useProducts: vi.fn().mockReturnValue({
+    products: [
+      { id: '1', name: '노트북', price: 1000000, category: 'electronics', image: 'laptop.jpg' },
+      { id: '2', name: '티셔츠', price: 30000, category: 'clothing', image: 'tshirt.jpg' }
+    ],
+    isLoading: false,
+    error: null
+  })
+}));
+
+describe('ProductList', () => {
+  it('상품 목록을 렌더링한다', async () => {
+    render(<ProductList />);
+    
+    expect(screen.getByText('노트북')).toBeInTheDocument();
+    expect(screen.getByText('티셔츠')).toBeInTheDocument();
+    expect(screen.getByText('1000000원')).toBeInTheDocument();
+  });
+  
+  it('카테고리 필터링이 작동한다', async () => {
+    render(<ProductList />);
+    
+    // 의류 카테고리 선택
+    const user = userEvent.setup();
+    await user.click(screen.getByText('의류'));
+    
+    // 필터링 확인
+    expect(screen.queryByText('노트북')).not.toBeInTheDocument();
+    expect(screen.getByText('티셔츠')).toBeInTheDocument();
+  });
+});
+```
+
+### 커스텀 훅 테스트 예시
+
+커스텀 훅을 추출한 경우 해당 훅에 대한 테스트도 작성합니다.
+
+```tsx
+// use-category-filter.test.ts
+import { renderHook, act } from '@testing-library/react';
+import { useCategoryFilter } from './use-category-filter';
+
+describe('useCategoryFilter', () => {
+  const mockProducts = [
+    { id: '1', category: 'electronics', name: '노트북' },
+    { id: '2', category: 'clothing', name: '티셔츠' }
+  ];
+
+  it('기본 카테고리는 "all"이어야 한다', () => {
+    const { result } = renderHook(() => useCategoryFilter(mockProducts));
+    expect(result.current.selectedCategory).toBe('all');
+  });
+
+  it('모든 제품을 반환해야 한다 (selectedCategory가 "all"일 때)', () => {
+    const { result } = renderHook(() => useCategoryFilter(mockProducts));
+    expect(result.current.filteredProducts).toHaveLength(2);
+  });
+
+  it('카테고리를 변경하면 필터링된 제품을 반환해야 한다', () => {
+    const { result } = renderHook(() => useCategoryFilter(mockProducts));
+    
+    act(() => {
+      result.current.setSelectedCategory('electronics');
+    });
+    
+    expect(result.current.filteredProducts).toHaveLength(1);
+    expect(result.current.filteredProducts[0].name).toBe('노트북');
+  });
+});
+```
+
+### 유틸리티 함수 테스트 예시
+
+분리된 유틸리티 함수도 단위 테스트를 작성합니다.
+
+```tsx
+// calculate-total.test.ts
+import { describe, it, expect } from 'vitest';
+import { calculateTotal } from './calculate-total';
+
+describe('calculateTotal', () => {
+  it('빈 배열에 대해 0을 반환한다', () => {
+    expect(calculateTotal([])).toBe(0);
+  });
+
+  it('단일 항목의 총 가격을 계산한다', () => {
+    const items = [{ price: 1000, quantity: 2 }];
+    expect(calculateTotal(items)).toBe(2000);
+  });
+
+  it('여러 항목의 총 가격을 계산한다', () => {
+    const items = [
+      { price: 1000, quantity: 2 },
+      { price: 500, quantity: 3 }
+    ];
+    expect(calculateTotal(items)).toBe(3500);
+  });
+});
+```
+
+## 리팩토링 시 테스트 코드 관리 원칙
+
+1. **구현 세부사항 테스트 지양**: 컴포넌트의 내부 구현보다 사용자 관점에서의 동작을 테스트
+2. **테스트 격리**: 각 테스트는 독립적으로 실행되어야 함
+3. **테스트 코드도 리팩토링**: 구현 변경에 따라 테스트 코드도 필요시 리팩토링
+4. **테스트 커버리지 유지**: 리팩토링으로 인해 테스트 커버리지가 감소하지 않도록 주의
+
+리팩토링 후에도 모든 테스트가 통과하면 기능이 제대로 보존되었다고 판단할 수 있습니다.

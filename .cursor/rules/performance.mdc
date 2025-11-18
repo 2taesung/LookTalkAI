@@ -1,0 +1,43 @@
+---
+description: 컴포넌트를 생성하거나 수정해야할 때 반드시 이 규칙을 참고하세요.
+globs: 
+alwaysApply: false
+---
+# 성능 최적화
+
+## 기본 원칙
+- useEffect와 setState 최소화
+- React의 내장 hooks 적절히 활용
+- 불필요한 렌더링 방지
+
+## 코드 분할과 지연 로딩
+- 코드 분할과 지연 로딩을 위한 React의 lazy loading과 Suspense 사용
+```typescript
+import React, { Suspense, lazy } from 'react';
+
+const HeavyComponent = lazy(() => import('@/components/HeavyComponent'));
+
+function App() {
+  return (
+    <Suspense fallback={<div>로딩 중...</div>}>
+      <HeavyComponent />
+    </Suspense>
+  );
+}
+```
+
+## 메모이제이션
+- 고비용 계산에 useMemo 활용
+- 콜백 함수 재생성 방지를 위한 useCallback 사용
+- 자식 컴포넌트 불필요한 재렌더링 방지를 위한 React.memo 활용
+
+## 이미지 최적화
+- 적절한 이미지 포맷 사용 (WebP, AVIF 등)
+- 크기 및 품질 최적화
+- 이미지에 width 및 height 속성 포함으로 레이아웃 이동 방지
+- 뷰포트에 들어올 때만 로드되는 지연 로딩 구현
+
+## 서버 상태 관리
+- Tanstack Query를 활용한 효율적인 서버 상태 관리
+- 적절한 캐싱 전략 구현
+- 낙관적 업데이트(Optimistic Update) 활용 

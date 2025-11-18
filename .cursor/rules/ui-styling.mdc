@@ -1,0 +1,105 @@
+---
+description: 컴포넌트에 스타일링을 적용할 필요가 있을 때 반드시 이 규칙을 참고하세요.
+globs: 
+alwaysApply: false
+---
+# UI와 스타일링
+
+## 기본 원칙
+- Tailwind CSS와 SCSS로 스타일링
+- Tailwind를 사용할 땐, [tailwind.config.js](mdc:packages/tailwind-base/tailwind.config.js) 기반 설정을 반드시 따를 것
+- em이 아닌 px을 단위로 이용할 것
+- 다음 위치에서 유사한 컴포넌트가 이미 존재하는지 반드시 확인:
+   - 작업 중인 파일이 apps/services/afterdoc-saas-web/*에 소속될 경우에만 packages/afterdoc-design-system/src/components 확인
+   - apps/services/{작업중인 애플리케이션명}/src/shared/components/* 확인
+
+## Tailwind Padding 또는 Margin 등
+- 0px ~ 100px까지는 다음과 같이 사용함
+```tsx
+<div className='mt-4' /> // mt-[4px]과 동일한 의미
+<div className='px-16' /> // px-[16px]과 동일한 의미
+<div className='h-22' /> // h-[22px]과 동일한 의미
+```
+
+- 0px ~ 100px 이외에 값이나 명시적으로 값을 표시하는게 더 낫다고 판단될 경우 다음과 같이 사용함
+```tsx
+<div className='mt-[120px]' />
+<div className='h-[36px]' />
+```
+
+## Tailwind 색상
+- Tailwind를 이용한 스타일링 시, [color.ts](mdc:packages/tailwind-base/src/styles/color.ts)에 있는 색상 값들을 우선으로 이용할 것
+- 예를 들어, bg-grey-200과 bg-blue-500은 [color.ts](mdc:packages/tailwind-base/src/styles/color.ts)에 정의돼있지 않은 배경색이며, bg-blue500이 적절한 사용임
+- 만약 [color.ts](mdc:packages/tailwind-base/src/styles/color.ts)에 존재하지 않는다면 bg-[#131313]과 같이 커스텀하게 사용할 것
+```tsx
+<div className='bg-blue500' />
+<div className='bg-red600' />
+<div className='bg-[#131313]' />
+...
+```
+
+## Tailwind 색상 이외 설정값들
+- text (text-Header14, text-Body12 등) [text.ts](mdc:packages/tailwind-base/src/styles/text.ts)
+```tsx
+<div className='text-Header14' />
+<div className='text-Body12' />
+...
+```
+- font (font-bold, font-medium 등) @font-weight.ts
+```tsx
+<div className='font-bold' />
+<div className='font-medium' />
+...
+```
+- shadow (shadow-modal 등) [shadow.ts](mdc:packages/tailwind-base/src/styles/shadow.ts)
+```tsx
+<div className='shadow-modal' />
+<div className='shadow-chat' />
+<div className='shadow-spary' />
+...
+```
+- radius (rounded-r6 등) [radius.ts](mdc:packages/tailwind-base/src/styles/radius.ts)
+```tsx
+<div className='rounded-r6' />
+<div className='rounded-r10' />
+...
+```
+- line-height (leading-h22 등) [line-height.ts](mdc:packages/tailwind-base/src/styles/line-height.ts)
+```tsx
+<div className='leading-h22' />
+...
+```
+
+## 커스텀 Tailwind ClassName 활용
+- @tailwind.config.js의 addComponents에 정의된 커스텀 ClassName을 적극 활용할 것.
+
+```tsx
+// addComponents에 정의된 커스텀 ClassName을 활용하지 않은 경우
+<button className='flex w-full h-full items-center justify-center text-red600 text-Body12'>버튼입니다</button>
+
+// addComponents에 정의된 커스텀 ClassName을 활용한 경우
+<button className='flex-full-center text-red600 text-Body12'>버튼입니다</button>
+```
+
+## Tailwind 동적 스타일링 적용
+- Tailwind에 동적 스타일링을 적용할 때는 반드시 customTwMerge를 import해서 사용할 것
+
+```tsx
+import { customTwMerge } from '@tailwind-base/utils/custom-tw-merge';
+
+<input
+  className={customTwMerge(
+    // input 기본 스타일
+    'w-full rounded-r16 border border-white600 bg-white50 px-16 py-14 text-[16px] text-black500 outline-none',
+    // placeholder 스타일
+    'placeholder:text-[#ACACAC] placeholder:text-[16px]',
+    // disabled 스타일
+    'disabled:border-white600 disabled:bg-disabled disabled:text-black500',
+    // right icon 스타일
+    rightIcon ? 'pr-42' : 'pr-30',
+    // error 스타일
+    hasError ? 'text-red500' : 'text-blue500',
+  )}
+/>
+
+```

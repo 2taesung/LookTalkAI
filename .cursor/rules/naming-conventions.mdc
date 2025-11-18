@@ -1,0 +1,50 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 명명 규칙
+
+## 파일 및 디렉토리 명명
+- 모든 컴포넌트들은 components 폴더 하위에 위치하며 NewComponent.tsx 형식으로 명명
+- 폴더 디렉토리는 소문자와 대시 사용 (예: components/auth-wizard)
+- 컴포넌트는 파일명은 CamelCase로 첫 글자 대문자
+- 컴포넌트는 export default function을 사용하고 CamelCase로 첫 글자 대문자
+- hooks와 utils는 export const를 사용하고 파일명은 kebab-case (예: use-patient-detail-info.ts)
+
+## Import/Export 규칙
+- **절대 경로를 사용한 직접 import/export 방식 사용 (필수)**
+- **단순 재전달(re-export) 목적의 index.ts 파일을 생성하지 않음 (금지)**
+  - ❌ 잘못된 예 (단순 재전달):
+    ```
+    components/
+    ├── Button/
+    │   ├── Button.tsx
+    │   └── index.ts  # export { default } from './Button'; 만 하는 경우
+    ```
+  - ✅ 올바른 예:
+    ```
+    components/
+    ├── Button/
+    │   └── Button.tsx
+    ```
+    ```typescript
+    // 직접 import
+    import Button from 'afterdoc-hospital-mobile/components/Button/Button';
+    ```
+  - ✅ index.ts를 사용해도 되는 경우:
+    - **패키지 진입점**: `packages/shared-utils/index.ts` (패키지의 공개 API 정의)
+    - **여러 모듈 묶음**: `assets/icons/index.ts` (여러 아이콘을 한 곳에서 export)
+    - **실제 로직 포함**: API 클라이언트 통합 파일 등
+- 이유: 프로젝트는 절대 경로로 명시적인 파일명을 직접 import하는 패턴을 사용하므로, 단순 재전달만 하는 index.ts는 불필요하며 일관성을 해침
+
+## 폴더 구조
+- 일관된 폴더 구조 유지 (components, hooks, pages, services)
+- 로직 재사용을 위한 커스텀 hooks 사용
+- 전역적으로 공유될 필요가 있는 훅 또는 유틸의 경우, packages/shared-hooks와 packages/shared-utils에 공유 코드 구성
+
+## Turborepo 구조
+- apps/services/afterdoc-saas-web: 메인 웹 애플리케이션 코드
+- apps/services/afterdoc-hospital-mobile: 메인 모바일 애플리케이션 코드
+- packages/afterdoc-design-system: 공유 디자인시스템 컴포넌트 
+- packages/shared-hooks, packages/shared-utils: 공유 코드

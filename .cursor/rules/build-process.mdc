@@ -1,0 +1,105 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# 빌드 프로세스 가이드
+
+이 문서는 AfterDoc-React 프로젝트의 빌드 프로세스 및 관련 설정에 관한 가이드라인을 제공합니다.
+
+## Turborepo 빌드 파이프라인
+
+AfterDoc-React는 Turborepo를 사용하여 모노레포 내 여러 앱과 패키지의 빌드 프로세스를 관리합니다. 빌드 파이프라인은 [turbo.json](mdc:turbo.json)에 정의되어 있습니다.
+
+## 빌드 명령어
+
+### 웹 애플리케이션 (afterdoc-saas-web)
+
+```bash
+# 개발 환경 빌드
+pnpm afterdoc-saas-web-build:dev
+
+# 프로덕션 환경 빌드
+pnpm afterdoc-saas-web-build:prod
+
+# 빌드 결과 프리뷰 (개발)
+pnpm afterdoc-saas-web-preview:dev
+
+# 빌드 결과 프리뷰 (프로덕션)
+pnpm afterdoc-saas-web-preview:prod
+```
+
+### 모바일 애플리케이션 (afterdoc-hospital-mobile)
+
+```bash
+# 개발 환경 빌드
+pnpm afterdoc-hospital-mobile-build:dev
+
+# 프로덕션 환경 빌드
+pnpm afterdoc-hospital-mobile-build:prod
+
+# 빌드 결과 프리뷰 (개발)
+pnpm afterdoc-hospital-mobile-preview:dev
+
+# 빌드 결과 프리뷰 (프로덕션)
+pnpm afterdoc-hospital-mobile-preview:prod
+```
+
+### 스토리북 (ads-storybook)
+
+```bash
+# 스토리북 빌드
+pnpm ads-storybook-build
+```
+
+## Vite 빌드 설정
+
+각 앱은 Vite를 사용하여 빌드됩니다. Vite 설정은 각 앱 디렉토리의 `vite.config.ts` 파일에 정의되어 있습니다.
+
+주요 빌드 옵션:
+- 코드 분할 (Code Splitting)
+- 청크 로딩 최적화 (Chunk Loading Optimization)
+- CSS 번들링 및 최적화
+- 환경별 변수 및 설정
+
+## 환경 변수
+
+환경별 빌드를 위한 환경변수는 다음과 같이 설정합니다:
+
+- `.env`: 모든 환경에 적용되는 기본 환경변수
+- `.env.development`: 개발 환경 전용 환경변수
+- `.env.production`: 프로덕션 환경 전용 환경변수
+
+## 빌드 최적화
+
+### 성능 최적화
+
+- 이미지 최적화: Vite의 이미지 최적화 플러그인 사용
+- 코드 분할: 페이지 및 컴포넌트 별 코드 분할
+- 트리 쉐이킹: 사용하지 않는 코드 제거
+- 지연 로딩: 필요한 시점에 리소스 로딩
+
+### 패키지 최적화
+
+```javascript
+// vite.config.ts의 빌드 최적화 설정 예시
+build: {
+  rollupOptions: {
+    output: {
+      manualChunks: {
+        vendor: ['react', 'react-dom'],
+        ui: ['afterdoc-design-system'],
+      }
+    }
+  }
+}
+```
+
+## CI/CD 파이프라인
+
+GitHub Actions를 사용한 CI/CD 파이프라인이 `.github/workflows` 디렉토리에 정의되어 있습니다. 주요 작업:
+
+1. 코드 검사 (린팅, 타입 체크)
+2. 테스트 실행
+3. 빌드
+4. 배포 (환경별)

@@ -1,0 +1,805 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Playwright 테스트 작성 규칙
+
+## 🎯 핵심 원칙
+
+### data-testid 우선화 원칙
+**Playwright 테스트 작성 시 가장 중요한 원칙**: 요소를 선택할 때 우선적으로 `data-testid`를 사용해야 합니다.
+
+1. **테스트 작성 시**: 요소 선택 시 `data-testid`가 있다면 가장 우선적으로 사용
+2. **data-testid가 없는 경우**: 다른 셀렉터 전략을 순서대로 시도
+3. **data-testid 추가가 필요한 경우**: 프론트엔드 개발자에게 추가 요청
+
+### data-testid 추가 요청 프로세스
+```typescript
+// 테스트 작성 중 data-testid가 없어서 추가 요청이 필요한 경우
+// 요청 예시
+// 컴포넌트: CustomerChatList
+// 위치: apps/services/afterdoc-saas-web/src/pages/customer-chat/
+// 필요한 data-testid: 
+// - customer-chat-list-container
+// - customer-chat-item
+// - customer-chat-search-input
+```
+
+## 테스트 구조
+
+### 테스트 케이스 명명
+- 모든 테스트 케이스는 `TC-XXX: 한글 설명` 형식을 따라야 합니다.
+- 예: `test('TC-001: 관리자 로그인 테스트', async ({ page }) => {})`
+
+### 테스트 그룹화
+- 관련된 테스트는 `test.describe` 블록으로 그룹화합니다.
+- 병렬 실행이 가능한 테스트는 `test.describe.parallel`을 사용합니다.
+
+### 테스트 구조화
+- 각 테스트는 Setup, Action, Assertion 단계로 구분합니다.
+- 각 단계는 주석으로 명확히 표시합니다.
+
+```typescript
+test('TC-001: 로그인 테스트', async ({ page }) => {
+  // 1. Setup (기본 URL로 이동하면 로그인 페이지가 표시됨)
+  await page.goto('/');
+  
+  // 2. Action
+  await page.fill('#username', 'testuser');
+  await page.fill('#password', 'password');
+  await page.click('button[type="submit"]');
+  
+  // 3. Assertion
+  await expect(page.locator('.welcome-message')).toBeVisible();
+});
+```
+
+## 셀렉터 우선순위
+
+### 1. data-testid (가장 권장)
+```typescript
+// ✅ 가장 안정적이고 명확한 방법 - 반드시 getByTestId 사용
+await page.getByTestId('login-submit-button').click();
+await page.getByTestId('customer-chat-title').waitFor({ state: 'visible' });
+
+// ❌ 절대 사용하지 말 것 - locator와 data-testid 속성 선택자
+await page.locator('[data-testid="login-submit-button"]').click(); // 잘못된 패턴!
+await page.locator('[data-testid="customer-chat-title"]').waitFor(); // 잘못된 패턴!
+```
+
+### 2. Role + Name
+```typescript
+// ✅ 접근성과 의미가 명확한 방법
+await page.getByRole('button', { name: '로그인' }).click();
+await page.getByRole('textbox', { name: '이메일' }).fill('test@example.com');
+```
+
+### 3. Label + Name
+```typescript
+// ✅ 폼 요소에 적합한 방법
+await page.getByLabel('이메일').fill('test@example.com');
+await page.getByLabel('비밀번호').fill('password123');
+```
+
+### 4. Placeholder
+```typescript
+// ✅ 입력 필드에 적합한 방법
+await page.getByPlaceholder('아이디 입력').fill('testuser');
+await page.getByPlaceholder('비밀번호 입력').fill('password');
+```
+
+### 5. Text Content
+```typescript
+// ✅ 텍스트 기반 요소에 적합한 방법
+await page.getByText('회원가입').click();
+await page.getByText('고객채팅').waitFor({ state: 'visible' });
+```
+
+## ⚠️ 중요: 클래스 선택자 사용 금지
+
+### 절대 사용하지 말아야 할 패턴들
+```typescript
+// ❌ 클래스 선택자 - 절대 금지
+await page.locator('[class*="EventListCard"]').click();
+await page.locator('.submit-button').click();
+await page.locator('[class^="customer-"]').click();
+
+// ❌ data-testid를 locator로 선택 - 절대 금지
+await page.locator('[data-testid="event-list-card"]').click();
+
+// ✅ 올바른 방법 - 반드시 이렇게 사용
+await page.getByTestId('event-list-card').click();
+```
+
+## data-testid 사용 규칙
+
+### data-testid의 목적과 원칙
+1. **순수 테스트 목적**
+   - data-testid는 오직 E2E 테스트를 위한 용도로만 사용
+   - 비즈니스 로직이나 UI/UX에 절대 영향을 주지 않아야 함
+   - 테스트 외부에서는 의미 없는 속성이어야 함
+
+2. **data-testid 추가 요청**
+   - 프론트엔드 개발자에게 data-testid 추가 요청 시:
+     - 테스트 목적임을 명확히 전달
+     - 비즈니스 로직에 영향 없음을 강조
+     - 컴포넌트/페이지 위치와 제안하는 data-testid 값 제공
+
+3. **data-testid 명명 규칙**
+   - 컴포넌트/기능-요소-용도 형식으로 작성
+   - 예: `login-submit-button`, `chat-message-input`, `patient-title`
+
+4. **임시 대응**
+   - data-testid가 추가되기 전까지는 기존 셀렉터 사용
+   - data-testid 추가 후 테스트 코드 업데이트
+
+### data-testid 사용 예시
+```typescript
+// ❌ 잘못된 방식: 비즈니스 로직에 영향
+await page.evaluate(() => {
+  // DOM을 직접 수정하거나 비즈니스 로직에 영향을 주는 코드
+  document.querySelector('.login-button').setAttribute('data-testid', 'login-button');
+  document.querySelector('.login-button').addEventListener('click', () => {
+    // 비즈니스 로직 수정
+  });
+});
+
+// ✅ 올바른 방식: 순수 테스트 목적
+await page.getByTestId('login-button').click();
+
+// ✅ 올바른 방식: data-testid가 없을 경우 기존 셀렉터 사용
+await page.getByRole('button', { name: '로그인' }).click();
+```
+
+## 대기 전략
+
+### 권장되는 방식
+```typescript
+// 페이지 로드 완료 대기
+await page.waitForLoadState('networkidle');
+
+// 요소 가시성 대기
+await expect(page.locator('.loading-spinner')).toBeHidden();
+await expect(page.locator('.success-message')).toBeVisible();
+
+// API 응답 대기
+const responsePromise = page.waitForResponse(response => 
+  response.url().includes('/api/data') && response.status() === 200
+);
+
+// 요소 존재 대기 (data-testid 우선)
+await page.waitForSelector('[data-testid="chatting-list-container"]', { timeout: 5000 });
+```
+
+### 피해야 할 방식
+```typescript
+// ❌ 하드코딩된 대기 시간 사용
+await page.waitForTimeout(5000);
+
+// ❌ 불안정한 CSS 클래스 의존
+await page.waitForSelector('.flex.h-full.flex-col.pb-10');
+```
+
+### 실제 프로젝트 대기 패턴
+```typescript
+// 현재 프로젝트에서 사용되는 패턴
+// 1. 네트워크 대기
+await page.waitForLoadState('networkidle');
+
+// 2. data-testid 우선 대기
+try {
+  await page.waitForSelector('[data-testid="chatting-list-container"]', { timeout: 5000 });
+} catch (error) {
+  // 대안 셀렉터 사용
+  await page.waitForSelector('.flex.h-full.flex-col.pb-10', { timeout: 5000 });
+}
+
+// 3. 요소 상태 대기
+await page.locator('[data-testid="customer-chat-title"]').waitFor({ state: 'visible', timeout: 5000 });
+```
+
+## 테스트 격리
+
+### 테스트 픽스처
+```typescript
+// fixtures.ts
+import { test as base } from '@playwright/test';
+import { TEST_ACCOUNT } from './test-config';
+
+export const test = base.extend({
+  loggedInPage: async ({ page }, use) => {
+    await page.goto('http://localhost:3000/');
+    
+    // 로그인 상태 확인
+    const isLoggedIn = await page
+      .locator('[data-testid="customer-chat-title"]')
+      .isVisible()
+      .catch(() => false);
+
+    if (!isLoggedIn) {
+      await page.getByPlaceholder('아이디 입력').fill(TEST_ACCOUNT.id);
+      await page.getByPlaceholder('비밀번호 입력').fill(TEST_ACCOUNT.pw);
+      await page.getByRole('button', { name: '로그인' }).click();
+      await page.waitForLoadState('networkidle');
+    }
+    
+    await use(page);
+  },
+});
+```
+
+### 테스트 데이터 관리
+```typescript
+// test-config.ts (실제 프로젝트 구조)
+export const TEST_ACCOUNT = {
+  id: 'E2E_test_afterdoc_ID',
+  pw: 'E2E_test_afterdoc_PW',
+  test_name: '이태성',
+};
+
+// test-data.ts
+export const TEST_CHAT_MESSAGES = {
+  simple: '테스트 메시지',
+  long: '이것은 매우 긴 테스트 메시지입니다. 여러 줄에 걸쳐 작성될 수 있습니다.',
+  special: '특수문자 테스트: !@#$%^&*()',
+};
+```
+
+## 에러 처리
+
+### 스크린샷과 비디오
+```typescript
+test('TC-001: 실패 시 스크린샷 저장', async ({ page }) => {
+  try {
+    await page.goto('/error-page');
+    await expect(page.locator('[data-testid="error-message"]')).toBeVisible();
+  } catch (error) {
+    await page.screenshot({ path: 'error-screenshot.png' });
+    throw error;
+  }
+});
+```
+
+### 디버깅 가이드 및 로깅 표준화
+
+#### 로깅 표준화 규칙
+**중요**: 테스트 코드에서는 일관된 로깅을 위해 다음 규칙을 따라야 합니다:
+
+1. **정보성 로그**: `console.info()` 사용
+   - 테스트 진행 상황 표시
+   - 성공 메시지 표시
+   - 단계별 진행 상황 로그
+
+2. **오류 로그**: `console.error()` 사용
+   - 테스트 실패 시
+   - 예외 처리 시
+
+3. **경고 로그**: `console.warn()` 사용
+   - 재시도 상황
+   - 경고 메시지
+
+4. **console.log 사용 금지**: 일관성을 위해 사용하지 않음
+   - 기존 코드에서 `console.log`를 발견하면 즉시 `console.info`로 변경
+   - 모든 테스트 파일에서 `console.log` 사용 금지
+
+#### 로깅 예시
+```typescript
+// ✅ 올바른 로깅 방식
+test('TC-001: 디버깅 예시', async ({ page }) => {
+  console.info('Step 1: Navigating to login page');
+  await page.goto('http://localhost:3000/');
+  
+  console.info('Step 2: Checking login status');
+  const isLoggedIn = await page
+    .locator('[data-testid="customer-chat-title"]')
+    .isVisible()
+    .catch(() => false);
+  console.info('Is logged in:', isLoggedIn);
+  
+  try {
+    // 테스트 로직
+    console.info('✓ 테스트 성공');
+  } catch (error) {
+    console.error('❌ 테스트 실패:', error);
+  }
+});
+
+// ❌ 잘못된 로깅 방식
+test('TC-002: 잘못된 로깅 예시', async ({ page }) => {
+  console.log('이렇게 하지 마세요'); // console.log 사용 금지
+  
+  // 올바른 방식
+  console.info('이렇게 하세요');
+});
+```
+
+#### 테스트 단계별 로깅 패턴
+```typescript
+test('TC-001: 표준 로깅 패턴', async ({ page }) => {
+  console.info('=== 테스트 시작: 로그인 및 채팅 ===');
+  
+  // Setup 단계
+  console.info('Step 1: 로그인 페이지 진입');
+  await page.goto('/'); // 기본 URL로 이동하면 로그인 페이지가 표시됨
+  
+  // Action 단계
+  console.info('Step 2: 로그인 시도');
+  try {
+    await page.getByPlaceholder('아이디 입력').fill('test');
+    await page.getByPlaceholder('비밀번호 입력').fill('password');
+    await page.getByRole('button', { name: '로그인' }).click();
+    console.info('✓ 로그인 성공');
+  } catch (error) {
+    console.error('❌ 로그인 실패:', error);
+    throw error;
+  }
+  
+  // Assertion 단계
+  console.info('Step 3: 로그인 결과 확인');
+  await expect(page.locator('[data-testid="welcome-message"]')).toBeVisible();
+  
+  console.info('=== 테스트 완료 ===');
+});
+```
+
+#### 재시도 로직에서의 로깅
+```typescript
+async function attemptTest(retryCount = 0): Promise<void> {
+  const maxRetries = 1;
+  
+  try {
+    console.info(`테스트 시도 ${retryCount + 1}/${maxRetries + 1}`);
+    
+    // 테스트 로직
+    console.info('✓ 테스트 성공');
+    
+  } catch (error) {
+    if (retryCount < maxRetries) {
+      console.warn(`테스트 실패로 인한 재시도 ${retryCount + 1}/${maxRetries}`);
+      return attemptTest(retryCount + 1);
+    }
+    console.error('❌ 최대 재시도 횟수 초과:', error);
+    throw error;
+  }
+}
+```
+
+## 환경 변수
+
+### 환경별 설정
+```typescript
+// playwright.config.ts (실제 프로젝트 설정)
+export default defineConfig({
+  use: {
+    baseURL: process.env.BASE_URL || 'http://localhost:3000',
+  },
+  webServer: {
+    command: 'pnpm afterdoc-saas-web:dev',
+    url: 'http://localhost:3000/',
+    reuseExistingServer: true,
+    timeout: 120 * 1000,
+  },
+});
+```
+
+### 시크릿 관리
+```typescript
+// .env
+TEST_USER_EMAIL=test@example.com
+TEST_USER_PASSWORD=secret123
+
+// test.spec.ts
+test('TC-001: 환경 변수 사용', async ({ page }) => {
+  await page.fill('[data-testid="email-input"]', process.env.TEST_USER_EMAIL);
+  await page.fill('[data-testid="password-input"]', process.env.TEST_USER_PASSWORD);
+});
+```
+
+## Page Object Model
+
+### 페이지 객체 정의
+```typescript
+// pages/LoginPage.ts
+export class LoginPage {
+  constructor(private page: Page) {}
+
+  async goto() {
+    await this.page.goto('/'); // 기본 URL로 이동하면 로그인 페이지가 표시됨
+  }
+
+  async login(username: string, password: string) {
+    await this.page.getByPlaceholder('아이디 입력').fill(username);
+    await this.page.getByPlaceholder('비밀번호 입력').fill(password);
+    await this.page.getByRole('button', { name: '로그인' }).click();
+  }
+
+  async expectSuccessMessage() {
+    await expect(this.page.locator('[data-testid="welcome-message"]')).toBeVisible();
+  }
+}
+
+// pages/CustomerChatPage.ts
+export class CustomerChatPage {
+  constructor(private page: Page) {}
+
+  async goto() {
+    await this.page.goto('/customer-chat');
+    await this.page.waitForLoadState('networkidle');
+  }
+
+  async waitForChatList() {
+    await this.page.waitForSelector('[data-testid="chatting-list-container"]', { timeout: 5000 });
+  }
+
+  async clickChatRoom(roomName: string) {
+    await this.page.locator('.text-Header14.text-black700', { hasText: roomName }).click();
+  }
+
+  async sendMessage(message: string) {
+    await this.page.getByTestId('chatting-textarea').fill(message);
+    await this.page.getByRole('button', { name: '전송' }).click();
+  }
+}
+```
+
+### 페이지 객체 사용
+```typescript
+test('TC-001: 로그인 테스트', async ({ page }) => {
+  const loginPage = new LoginPage(page);
+  await loginPage.goto();
+  await loginPage.login(TEST_ACCOUNT.id, TEST_ACCOUNT.pw);
+  await loginPage.expectSuccessMessage();
+});
+```
+
+## CI/CD 통합
+
+### GitHub Actions 설정
+```yaml
+# .github/workflows/e2e-tests.yml
+name: E2E Tests
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - run: npm install -g pnpm
+      - run: pnpm install
+      - run: pnpm playwright install
+      - run: pnpm playwright test
+      - uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+```
+
+## 성능 최적화
+
+### 병렬 실행 최적화
+```typescript
+// playwright.config.ts
+export default defineConfig({
+  fullyParallel: true,
+  workers: process.env.CI ? 1 : undefined,
+  retries: process.env.CI ? 2 : 0,
+});
+```
+
+### 테스트 격리 최적화
+```typescript
+// 각 테스트가 독립적으로 실행되도록 설정
+test.describe.parallel('Customer Chat Tests', () => {
+  test('TC-001: 채팅 목록 로드', async ({ page }) => {
+    // 독립적인 테스트
+  });
+  
+  test('TC-002: 메시지 전송', async ({ page }) => {
+    // 독립적인 테스트
+  });
+});
+```
+
+## 모니터링 및 리포팅
+
+### 테스트 결과 분석
+```typescript
+// playwright.config.ts
+export default defineConfig({
+  reporter: [
+    ['html'],
+    ['json', { outputFile: 'test-results/results.json' }],
+    ['junit', { outputFile: 'test-results/results.xml' }]
+  ],
+  outputDir: 'test-results',
+  preserveOutput: 'failures-only',
+});
+```
+
+## Biome Lint 규칙 준수 (필수)
+
+**E2E 테스트 코드도 프로덕션 코드와 동일한 Biome lint 규칙을 따라야 합니다.**
+
+### 1. forEach 대신 for...of 사용 (필수)
+
+Biome는 `forEach` 사용을 금지하고 `for...of` 루프 사용을 강제합니다.
+
+```typescript
+// ❌ 잘못된 예 - forEach 사용
+const testUrls = ['/page1', '/page2', '/page3'];
+testUrls.forEach(async (url) => {
+  await page.goto(url);
+  await expect(page).toHaveTitle(/Test/);
+});
+
+// ✅ 올바른 예 - for...of 사용
+const testUrls = ['/page1', '/page2', '/page3'];
+for (const url of testUrls) {
+  await page.goto(url);
+  await expect(page).toHaveTitle(/Test/);
+}
+```
+
+```typescript
+// ❌ 잘못된 예 - 테스트 케이스 반복에서 forEach 사용
+const testCases = [
+  { name: '환자1', expected: true },
+  { name: '환자2', expected: false },
+];
+
+testCases.forEach(({ name, expected }) => {
+  test(`TC-001: ${name} 테스트`, async ({ page }) => {
+    const result = await checkPatient(page, name);
+    expect(result).toBe(expected);
+  });
+});
+
+// ✅ 올바른 예 - for...of 사용
+for (const { name, expected } of testCases) {
+  test(`TC-001: ${name} 테스트`, async ({ page }) => {
+    const result = await checkPatient(page, name);
+    expect(result).toBe(expected);
+  });
+}
+```
+
+### 2. any 타입 사용 금지 (필수)
+
+테스트 코드에서도 `any` 타입 사용을 절대 금지합니다. 모든 타입은 명시적으로 정의해야 합니다.
+
+```typescript
+// ❌ 잘못된 예 - any 타입 사용
+const testData: any = {
+  username: 'test',
+  password: 'test123',
+};
+
+const mockResponse: any = await page.evaluate(() => {
+  return { success: true };
+});
+
+// ✅ 올바른 예 - 명시적 타입 정의
+interface TestLoginData {
+  username: string;
+  password: string;
+}
+
+const testData: TestLoginData = {
+  username: 'test',
+  password: 'test123',
+};
+
+interface LoginResponse {
+  success: boolean;
+}
+
+const mockResponse = await page.evaluate(() => {
+  return { success: true } as LoginResponse;
+});
+```
+
+```typescript
+// ❌ 잘못된 예 - Page Object 메서드 반환 타입 any
+async getElements(): Promise<any> {
+  return await this.page.locator('.item').all();
+}
+
+// ✅ 올바른 예 - 명시적 반환 타입
+async getElements(): Promise<Locator[]> {
+  return await this.page.locator('.item').all();
+}
+```
+
+**불가피한 경우 biome-ignore 사용:**
+```typescript
+// 외부 라이브러리의 타입이 불완전한 경우에만 사용
+// biome-ignore lint/suspicious/noExplicitAny: Playwright의 내부 API 타입 불완전
+const context: any = await browser.newContext();
+```
+
+### 3. const 사용 (재할당되지 않는 변수)
+
+재할당되지 않는 변수는 반드시 `const`를 사용해야 합니다.
+
+```typescript
+// ❌ 잘못된 예 - 재할당되지 않는데 let 사용
+test('TC-001: 로그인 테스트', async ({ page }) => {
+  let loginButton = page.getByRole('button', { name: '로그인' });
+  let currentUrl = page.url();
+
+  await loginButton.click();
+  expect(currentUrl).toContain('/login');
+});
+
+// ✅ 올바른 예 - const 사용
+test('TC-001: 로그인 테스트', async ({ page }) => {
+  const loginButton = page.getByRole('button', { name: '로그인' });
+  const currentUrl = page.url();
+
+  await loginButton.click();
+  expect(currentUrl).toContain('/login');
+});
+```
+
+### 4. 후행 쉼표 사용
+
+배열, 객체, 함수 인자의 마지막 항목에 후행 쉼표를 사용해야 합니다.
+
+```typescript
+// ❌ 잘못된 예 - 후행 쉼표 없음
+const testData = {
+  username: 'test',
+  password: 'test123'
+};
+
+const testCases = [
+  { name: '테스트1', expected: true },
+  { name: '테스트2', expected: false }
+];
+
+// ✅ 올바른 예 - 후행 쉼표 사용
+const testData = {
+  username: 'test',
+  password: 'test123',
+};
+
+const testCases = [
+  { name: '테스트1', expected: true },
+  { name: '테스트2', expected: false },
+];
+```
+
+### 5. 파일 끝 개행 필수
+
+모든 파일은 끝에 빈 줄이 있어야 합니다.
+
+```typescript
+// ❌ 잘못된 예 - 파일 끝 개행 없음
+test('TC-001: 마지막 테스트', async ({ page }) => {
+  await page.goto('/');
+  await expect(page).toHaveTitle(/Test/);
+});
+// 파일 끝 (개행 없음)
+
+// ✅ 올바른 예 - 파일 끝 개행 있음
+test('TC-001: 마지막 테스트', async ({ page }) => {
+  await page.goto('/');
+  await expect(page).toHaveTitle(/Test/);
+});
+// 파일 끝 (개행 있음)
+
+```
+
+### 6. Lint 검사 실행
+
+```bash
+# E2E 테스트 파일 Biome 체크
+pnpm biome check e2e/                  # e2e 폴더 전체 체크
+pnpm biome check --apply e2e/          # 자동 수정 적용
+pnpm biome check e2e/login.spec.ts     # 특정 파일 체크
+
+# Git push 전 자동 실행
+# .husky/pre-push 훅에서 자동으로 Biome 체크 실행됨
+```
+
+### 7. 테스트 작성 시 주의사항
+
+**E2E 테스트 특화 Lint 규칙:**
+
+```typescript
+// ✅ 올바른 E2E 테스트 패턴
+test('TC-001: 전체 플로우 테스트', async ({ page }) => {
+  // 1. 명시적 타입 정의
+  interface LoginCredentials {
+    username: string;
+    password: string;
+  }
+
+  const credentials: LoginCredentials = {
+    username: 'test',
+    password: 'test123',
+  };
+
+  // 2. const 사용
+  const loginPage = page.getByTestId('login-page');
+  const submitButton = page.getByRole('button', { name: '로그인' });
+
+  // 3. for...of 사용 (forEach 금지)
+  const inputFields = [
+    { testId: 'username-input', value: credentials.username },
+    { testId: 'password-input', value: credentials.password },
+  ];
+
+  for (const field of inputFields) {
+    await page.getByTestId(field.testId).fill(field.value);
+  }
+
+  // 4. 후행 쉼표
+  await submitButton.click();
+
+  // 5. 명시적 타입 반환
+  const currentUrl: string = page.url();
+  expect(currentUrl).toContain('/dashboard');
+});
+// 6. 파일 끝 개행
+```
+
+## 권장 사항 요약
+
+1. **data-testid 우선화**: 모든 테스트 가능한 요소에 data-testid 추가
+2. **안정적인 셀렉터**: CSS 클래스보다 의미있는 셀렉터 사용
+3. **적절한 대기**: 하드코딩된 대기 시간 피하기
+4. **테스트 격리**: 각 테스트가 독립적으로 실행되도록 설계
+5. **명확한 구조**: Setup-Action-Assertion 패턴 준수
+6. **에러 처리**: 실패 시 디버깅 정보 수집
+7. **성능 고려**: 병렬 실행과 최적화된 설정 사용
+8. **Biome Lint 준수**: E2E 테스트도 프로덕션 코드와 동일한 품질 기준 적용
+
+## ⚠️ 문서 작성 규칙
+
+### 임시 문서는 반드시 TEMP 접두어 사용
+
+**중요**: 사용자에게 설명 목적이거나 일회성 정보 전달을 위한 임시 문서를 작성할 때는 **반드시 파일명에 `TEMP_`를 접두어로 붙여야** 합니다.
+
+#### 임시 문서 작성 규칙
+1. **파일명 형식**: `TEMP_작업명_날짜.md`
+   - 예: `TEMP_playwright_setup_20250114.md`
+   - 예: `TEMP_test_결과_summary.md`
+
+2. **작성 시점**:
+   - 사용자에게 한 번 설명하고 끝날 내용
+   - 특정 작업의 임시 요약/리포트
+   - 일회성 가이드나 분석 결과
+
+3. **작성하지 않아야 할 경우**:
+   - 지속적으로 참조될 문서 → 기존 문서에 통합
+   - 프로젝트 규칙/가이드 → `.cursor/rules/` 또는 `CLAUDE.md`에 추가
+   - 테스트 설정/구성 → `e2e/README.md` 또는 관련 설정 파일에 추가
+
+#### 예시
+```bash
+# ✅ 올바른 임시 문서 작성
+TEMP_headless_안정화_작업요약_20250114.md
+TEMP_로그인_이슈_분석.md
+TEMP_테스트_결과_리포트.md
+
+# ❌ 잘못된 문서 작성 (TEMP 없이 생성)
+PLAYWRIGHT_TDD_GUIDE.md  # → 기존 문서에 통합하거나 TEMP_ 접두어 사용
+SUMMARY.md               # → TEMP_SUMMARY.md로 작성
+test-setup-guide.md      # → e2e/README.md에 통합
+```
+
+#### 임시 문서 관리
+- TEMP로 시작하는 파일은 작업 완료 후 사용자와 확인 후 삭제
+- `.gitignore`에 `TEMP_*.md` 패턴 추가 권장
+- 필요한 내용은 정식 문서로 마이그레이션 후 임시 파일 삭제

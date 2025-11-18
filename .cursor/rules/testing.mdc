@@ -1,0 +1,658 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 테스트 가이드
+
+이 문서는 AfterDoc-React 프로젝트의 테스트 작성 및 실행에 관한 가이드라인을 제공합니다.
+
+## 테스트 도구
+
+- **Vitest**: 단위 테스트 프레임워크
+- **Playwright**: E2E 테스트 프레임워크
+- **@testing-library/react**: React 컴포넌트 테스트
+- **MSW(Mock Service Worker)**: API 모킹 라이브러리
+- **Testing Library User Event**: 사용자 상호작용 시뮬레이션
+- **Vitest Coverage**: 코드 커버리지 측정
+
+## 테스트 파일 위치
+
+- 컴포넌트 테스트: 컴포넌트 파일과 동일한 디렉토리에 `ComponentName.test.tsx` 형식으로 작성
+- 유틸리티 테스트: 유틸리티 파일과 동일한 디렉토리에 `utility-name.test.ts` 형식으로 작성
+- 훅 테스트: 훅 파일과 동일한 디렉토리에 `use-name.test.ts` 형식으로 작성
+- E2E 테스트: 프로젝트 루트의 `e2e` 디렉토리에 작성
+
+## 테스트 실행 명령어
+
+```bash
+# 모든 테스트 실행
+pnpm test
+
+# 감시 모드로 테스트 실행
+pnpm test:watch
+
+# 특정 앱의 테스트만 실행
+pnpm --filter=afterdoc-saas-web test
+
+# 특정 파일의 테스트만 실행
+pnpm test -- ComponentName.test.tsx
+
+# 코드 커버리지 측정
+pnpm test:coverage
+
+# Playwright E2E 테스트 실행
+pnpm playwright
+```
+
+## 단위 테스트 작성 가이드
+
+### 기본 컴포넌트 테스트
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import Component from './Component';
+
+describe('Component', () => {
+  it('renders correctly', () => {
+    render(<Component />);
+    expect(screen.getByText('예상 텍스트')).toBeInTheDocument();
+  });
+  
+  it('handles user interaction', async () => {
+    const user = userEvent.setup();
+    render(<Component />);
+    
+    await user.click(screen.getByRole('button', { name: '클릭' }));
+    expect(screen.getByText('클릭 후 텍스트')).toBeInTheDocument();
+  });
+  
+  it('shows error state when API fails', async () => {
+    // 에러 상태 테스트
+    render(<Component hasError={true} />);
+    expect(screen.getByText('오류가 발생했습니다')).toBeInTheDocument();
+  });
+});
+```
+
+### 컨텍스트나 Provider가 필요한 컴포넌트 테스트
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { ThemeProvider } from 'your-theme-provider';
+import Component from './Component';
+
+// 테스트를 위한 커스텀 렌더러
+function renderWithProviders(ui, { theme = 'light', ...options } = {}) {
+  return render(
+    <ThemeProvider theme={theme}>
+      {ui}
+    </ThemeProvider>,
+    options
+  );
+}
+
+describe('Component', () => {
+  it('renders with light theme correctly', () => {
+    renderWithProviders(<Component />);
+    const element = screen.getByTestId('themed-element');
+    expect(element).toHaveStyle('background-color: white');
+  });
+  
+  it('renders with dark theme correctly', () => {
+    renderWithProviders(<Component />, { theme: 'dark' });
+    const element = screen.getByTestId('themed-element');
+    expect(element).toHaveStyle('background-color: black');
+  });
+});
+```
+
+### 비동기 작업 테스트
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import AsyncComponent from './AsyncComponent';
+
+describe('AsyncComponent', () => {
+  it('loads data after clicking the button', async () => {
+    const user = userEvent.setup();
+    render(<AsyncComponent />);
+    
+    // 초기 상태 확인
+    expect(screen.getByText('데이터 로드')).toBeInTheDocument();
+    
+    // 버튼 클릭
+    await user.click(screen.getByRole('button', { name: '데이터 로드' }));
+    
+    // 로딩 상태 확인
+    expect(screen.getByText('로딩 중...')).toBeInTheDocument();
+    
+    // 데이터 로드 완료 후 상태 확인
+    await waitFor(() => {
+      expect(screen.getByText('데이터:')).toBeInTheDocument();
+    });
+  });
+});
+```
+
+## API 모킹 및 통합 테스트
+
+### MSW를 사용한 API 모킹
+
+```typescript
+import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { setupServer } from 'msw/node';
+import { rest } from 'msw';
+import DataComponent from './DataComponent';
+
+// API 모킹 설정
+const server = setupServer(
+  rest.get('/api/data', (req, res, ctx) => {
+    return res(
+      ctx.json({
+        items: [
+          { id: 1, name: '아이템 1' },
+          { id: 2, name: '아이템 2' }
+        ]
+      })
+    );
+  })
+);
+
+// 테스트 시작 전 서버 시작
+beforeAll(() => server.listen());
+// 각 테스트 후 핸들러 초기화
+afterEach(() => server.resetHandlers());
+// 모든 테스트 완료 후 서버 종료
+afterAll(() => server.close());
+
+describe('DataComponent', () => {
+  it('fetches and displays data', async () => {
+    render(<DataComponent />);
+    
+    // 로딩 상태 확인
+    expect(screen.getByText('로딩 중...')).toBeInTheDocument();
+    
+    // 데이터 로드 후 확인
+    await waitFor(() => {
+      expect(screen.getByText('아이템 1')).toBeInTheDocument();
+      expect(screen.getByText('아이템 2')).toBeInTheDocument();
+    });
+  });
+  
+  it('handles error state', async () => {
+    // 특정 테스트를 위한 서버 핸들러 오버라이드
+    server.use(
+      rest.get('/api/data', (req, res, ctx) => {
+        return res(ctx.status(500));
+      })
+    );
+    
+    render(<DataComponent />);
+    
+    await waitFor(() => {
+      expect(screen.getByText('오류가 발생했습니다')).toBeInTheDocument();
+    });
+  });
+});
+```
+
+## 훅 테스트
+
+### 커스텀 훅 테스트
+
+```typescript
+import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { useCounter } from './use-counter';
+
+describe('useCounter', () => {
+  it('초기값이 올바르게 설정된다', () => {
+    const { result } = renderHook(() => useCounter(5));
+    expect(result.current.count).toBe(5);
+  });
+  
+  it('increment 함수가 카운트를 증가시킨다', () => {
+    const { result } = renderHook(() => useCounter(0));
+    
+    act(() => {
+      result.current.increment();
+    });
+    
+    expect(result.current.count).toBe(1);
+  });
+  
+  it('decrement 함수가 카운트를 감소시킨다', () => {
+    const { result } = renderHook(() => useCounter(1));
+    
+    act(() => {
+      result.current.decrement();
+    });
+    
+    expect(result.current.count).toBe(0);
+  });
+  
+  it('reset 함수가 카운트를 초기값으로 재설정한다', () => {
+    const { result } = renderHook(() => useCounter(0));
+    
+    act(() => {
+      result.current.increment();
+      result.current.increment();
+    });
+    
+    expect(result.current.count).toBe(2);
+    
+    act(() => {
+      result.current.reset();
+    });
+    
+    expect(result.current.count).toBe(0);
+  });
+});
+```
+
+### 컨텍스트가 필요한 훅 테스트
+
+```typescript
+import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { ThemeProvider, useTheme } from './theme-context';
+
+describe('useTheme', () => {
+  it('올바른 테마 값을 제공한다', () => {
+    const wrapper = ({ children }) => (
+      <ThemeProvider initialTheme="light">
+        {children}
+      </ThemeProvider>
+    );
+
+    const { result } = renderHook(() => useTheme(), { wrapper });
+    expect(result.current.theme).toBe('light');
+  });
+
+  it('toggleTheme 함수가 테마를 변경한다', () => {
+    const wrapper = ({ children }) => (
+      <ThemeProvider initialTheme="light">
+        {children}
+      </ThemeProvider>
+    );
+
+    const { result } = renderHook(() => useTheme(), { wrapper });
+
+    act(() => {
+      result.current.toggleTheme();
+    });
+
+    expect(result.current.theme).toBe('dark');
+  });
+});
+```
+
+### let 사용 제거 패턴 (Biome 린트 준수)
+
+**원칙**: Biome 린트 규칙에 따라 재할당되지 않는 변수는 `const`를 사용해야 합니다.
+
+#### createWrapper 헬퍼 함수 패턴 (권장)
+
+```typescript
+import { renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+describe('useCustomHook', () => {
+  /* wrapper 생성 헬퍼 함수 */
+  const createWrapper = () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+
+    return { queryClient, wrapper };
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('테스트 케이스 1', () => {
+    const { queryClient, wrapper } = createWrapper();
+
+    // queryClient와 wrapper를 사용한 테스트 로직
+    const { result } = renderHook(() => useCustomHook(), { wrapper });
+
+    // 검증 로직
+  });
+
+  it('테스트 케이스 2', async () => {
+    const { queryClient, wrapper } = createWrapper();
+    const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    // 테스트 로직
+    renderHook(() => useCustomHook(), { wrapper });
+
+    await waitFor(() => {
+      expect(invalidateQueriesSpy).toHaveBeenCalled();
+    });
+  });
+});
+```
+
+**장점**:
+- ✅ `let` 사용 완전 제거
+- ✅ 각 테스트가 독립적인 QueryClient 사용 (완전한 격리)
+- ✅ 테스트 간 상태 오염 방지
+- ✅ Biome 린트 규칙 완벽 준수
+
+### predicate 함수 테스트 패턴
+
+복잡한 로직을 가진 predicate 함수를 검증하는 패턴입니다.
+
+```typescript
+it('predicate 함수가 조건을 올바르게 비교한다', () => {
+  const { queryClient, wrapper } = createWrapper();
+  const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+  /* 여러 쿼리 데이터 설정 */
+  queryClient.setQueryData([TEST_QUERY_KEY, { id: 1 }], { data: 'test1' });
+  queryClient.setQueryData(['otherKey', { id: 2 }], { data: 'test2' });
+
+  renderHook(() => useCustomHook(), { wrapper });
+
+  /* predicate 함수 추출 */
+  const predicateArg = invalidateQueriesSpy.mock.calls[0]?.[0];
+  const predicate =
+    predicateArg && 'predicate' in predicateArg ? predicateArg.predicate : undefined;
+
+  expect(predicate).toBeDefined();
+
+  if (predicate) {
+    /* 조건 검증 */
+    expect(predicate({ queryKey: [TEST_QUERY_KEY, { id: 1 }] })).toBe(true);
+    expect(predicate({ queryKey: ['otherKey', { id: 2 }] })).toBe(false);
+    expect(predicate({ queryKey: 'stringKey' })).toBe(false);
+  }
+});
+```
+
+## 모킹 및 스파이
+
+### 함수 모킹
+
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import SubmitButton from './SubmitButton';
+
+describe('SubmitButton', () => {
+  it('클릭 시 onSubmit 함수를 호출한다', async () => {
+    const handleSubmit = vi.fn();
+    const user = userEvent.setup();
+    
+    render(<SubmitButton onSubmit={handleSubmit} label="제출" />);
+    
+    await user.click(screen.getByRole('button', { name: '제출' }));
+    
+    expect(handleSubmit).toHaveBeenCalledTimes(1);
+  });
+  
+  it('비활성화 상태에서는 onSubmit 함수를 호출하지 않는다', async () => {
+    const handleSubmit = vi.fn();
+    const user = userEvent.setup();
+    
+    render(<SubmitButton onSubmit={handleSubmit} label="제출" disabled />);
+    
+    await user.click(screen.getByRole('button', { name: '제출' }));
+    
+    expect(handleSubmit).not.toHaveBeenCalled();
+  });
+});
+```
+
+### 모듈 모킹
+
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { AuthComponent } from './AuthComponent';
+
+// 모듈 전체 모킹
+vi.mock('./auth-service', () => ({
+  isAuthenticated: vi.fn(() => true),
+  getUserRole: vi.fn(() => 'admin')
+}));
+
+describe('AuthComponent', () => {
+  it('인증된 사용자에게 환영 메시지를 표시한다', () => {
+    render(<AuthComponent />);
+    expect(screen.getByText('환영합니다, 관리자님!')).toBeInTheDocument();
+  });
+});
+```
+
+## E2E 테스트 작성 가이드
+
+E2E 테스트 작성 시에는 **@playwright.mdc 규칙을 반드시 참고하세요.**
+
+@playwright.mdc 규칙에는 다음 내용이 포함되어 있습니다:
+- **data-testid 우선화 원칙**: 요소 선택 시 data-testid를 최우선으로 사용
+- **셀렉터 우선순위**: data-testid > Role + Name > Label + Name > Placeholder > Text Content
+- **대기 전략**: networkidle, 요소 가시성 대기 등 안정적인 대기 방법
+- **테스트 구조화**: Setup-Action-Assertion 패턴
+- **로깅 표준화**: console.info 사용, console.log 사용 금지
+- **에러 처리 및 디버깅**: 스크린샷, 재시도 로직
+- **Page Object Model**: 재사용 가능한 페이지 객체 패턴
+
+### 간단한 E2E 테스트 예시
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test('TC-001: 사용자 로그인 흐름', async ({ page }) => {
+  console.info('=== 로그인 테스트 시작 ===');
+  
+  // Setup: 로그인 페이지로 이동 (기본 URL로 이동하면 로그인 페이지가 표시됨)
+  console.info('Step 1: 로그인 페이지 진입');
+  await page.goto('/');
+  
+  // Action: 사용자 입력 (data-testid 우선 사용)
+  console.info('Step 2: 로그인 정보 입력');
+  await page.getByPlaceholder('아이디 입력').fill('test@example.com');
+  await page.getByPlaceholder('비밀번호 입력').fill('password123');
+  await page.getByRole('button', { name: '로그인' }).click();
+  
+  // Assertion: 로그인 성공 확인
+  console.info('Step 3: 로그인 결과 확인');
+  await page.waitForLoadState('networkidle');
+  await expect(page.locator('[data-testid="welcome-message"]')).toBeVisible();
+  
+  console.info('✓ 로그인 테스트 완료');
+});
+```
+
+**주의사항**: 
+- 위 예시는 기본적인 구조만 보여줍니다.
+- 실제 E2E 테스트 작성 시에는 @playwright.mdc의 모든 규칙을 따라야 합니다.
+- 특히 data-testid 우선 사용, 적절한 대기 전략, 로깅 표준화는 필수입니다.
+
+## 테스트 코드 품질 관리
+
+### Biome Lint 규칙 준수 (필수)
+
+**테스트 코드도 프로덕션 코드와 동일한 Biome lint 규칙을 따라야 합니다.**
+
+#### 1. forEach 대신 for...of 사용 (필수)
+```typescript
+// ❌ 잘못된 예 - forEach 사용
+testCases.forEach((testCase) => {
+  expect(result).toBe(testCase.expected);
+});
+
+// ✅ 올바른 예 - for...of 사용
+for (const testCase of testCases) {
+  expect(result).toBe(testCase.expected);
+}
+```
+
+#### 2. any 타입 사용 금지 (필수)
+```typescript
+// ❌ 잘못된 예 - any 타입 사용
+const mockApiClient = apiClient as any;
+const requests: any[] = [];
+
+// ✅ 올바른 예 - 명시적 타입 정의
+interface MockApiClient {
+  v3: {
+    someHandler: ReturnType<typeof vi.fn>;
+  };
+}
+const mockApiClient = apiClient as unknown as MockApiClient;
+
+interface PaginationRequest {
+  url: string;
+  timestamp: number;
+}
+const requests: PaginationRequest[] = [];
+```
+
+**biome-ignore 주석 사용 시 명확한 이유 명시:**
+```typescript
+// ✅ 올바른 예 - 이유가 명확한 경우에만 사용
+// biome-ignore lint/suspicious/noExplicitAny: 테스트 모킹에서 일반적인 API 응답 타입 처리를 위해 필요
+vi.mocked(SHARED_UTILS.api.checkApiResponse).mockImplementation(
+  (response: any) => response.data,
+);
+```
+
+#### 3. const 사용 (재할당되지 않는 변수)
+```typescript
+// ❌ 잘못된 예 - let 사용
+let mockSetSelectedChannels = vi.fn();
+let currentUrl = page.url();
+
+// ✅ 올바른 예 - const 사용
+const mockSetSelectedChannels = vi.fn();
+const currentUrl = page.url();
+```
+
+#### 4. 후행 쉼표 사용
+```typescript
+// ❌ 잘못된 예
+const testData = {
+  name: 'test',
+  age: 20
+};
+
+// ✅ 올바른 예
+const testData = {
+  name: 'test',
+  age: 20,
+};
+```
+
+#### 5. 파일 끝 개행 필수
+모든 테스트 파일은 파일 끝에 빈 줄(개행)이 있어야 합니다.
+
+#### 6. Lint 검사 실행
+```bash
+# 테스트 파일 린트 검사
+pnpm lint -- --diagnostic-level=error
+
+# 자동 수정
+pnpm biome check --apply .
+```
+
+### 코드 커버리지
+
+코드 커버리지는 테스트가 애플리케이션 코드를 얼마나 실행하는지 측정합니다. 다음 명령어로 커버리지 보고서를 생성할 수 있습니다:
+
+```bash
+pnpm test:coverage
+```
+
+커버리지 목표:
+- 라인 커버리지: 최소 80%
+- 함수 커버리지: 최소 80%
+- 브랜치 커버리지: 최소 70%
+
+### 테스트 우선순위
+
+1. 핵심 비즈니스 로직(도메인 로직)
+2. 사용자 워크플로우
+3. 에러 처리 및 예외 상황
+4. 경계 조건
+
+### 테스트 품질 체크리스트
+
+- [ ] 테스트는 독립적으로 실행 가능한가?
+- [ ] 테스트는 결정적(항상 같은 결과)인가?
+- [ ] 테스트 이름이 명확한가?
+- [ ] 테스트는 하나의 동작만 검증하는가?
+- [ ] 모킹이 필요한 곳에 적절하게 사용되었는가?
+- [ ] 모든 중요한 에러 케이스가 처리되는가?
+- [ ] 테스트 코드가 깔끔하고 유지보수 가능한가?
+
+## Git Hooks를 통한 테스트 자동화
+
+### pre-push 훅
+
+git push 전에 테스트가 통과하는지 확인:
+
+```bash
+#!/bin/sh
+
+# 현재 브랜치 이름을 가져옵니다.
+branch="$(git rev-parse --abbrev-ref HEAD)"
+
+# dev 브랜치에 push하는 것을 방지합니다.
+if [ "$branch" = "dev" ]; then
+  echo "dev 브랜치에 직접 push할 수 없습니다. 새로운 브랜치를 생성해주세요."
+  exit 1
+fi
+
+# 모든 테스트 실행
+echo "테스트 실행 중..."
+pnpm test || {
+  echo "테스트가 실패했습니다. push가 중단됩니다."
+  exit 1
+}
+
+# TypeScript 타입 검사
+echo "TypeScript 타입 검사 중..."
+pnpm tsc:check || {
+  echo "TypeScript 타입 검사가 실패했습니다. push가 중단됩니다."
+  exit 1
+}
+
+# 모든 검사가 통과하면 성공 메시지 출력
+echo "모든 검사가 통과했습니다. push를 진행합니다."
+exit 0
+```
+
+## 권장 테스트 패턴 및 안티 패턴
+
+### 권장 패턴
+
+1. **행동(Behavior) 기반 테스트**: 내부 구현보다 컴포넌트의 행동에 집중
+2. **데이터 테스트 분리**: 테스트 데이터를 별도의 파일이나 함수로 분리
+3. **AAA 패턴**: Arrange(준비)-Act(실행)-Assert(검증) 패턴 활용
+4. **테스트 헬퍼 함수**: 반복적인 테스트 로직을 헬퍼 함수로 추출
+
+### 안티 패턴
+
+1. **구현 세부사항 테스트**: 내부 구현에 의존하면 리팩토링 시 테스트가 깨짐
+2. **과도한 모킹**: 실제 동작을 테스트하지 못하게 됨
+3. **플레이킹 테스트**: 가끔 실패하는 테스트 (주로 타이밍 이슈)
+4. **거대한 테스트**: 너무 많은 것을 테스트하는 복잡한 테스트

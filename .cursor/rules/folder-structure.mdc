@@ -1,0 +1,89 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 폴더 구조 가이드라인
+
+이 문서는 AfterDoc-React 프로젝트의 폴더 구조 및 파일 조직에 관한 가이드라인을 제공합니다.
+
+## 애플리케이션 폴더 구조
+
+### 컴포넌트 폴더 구조
+
+컴포넌트는 다음 패턴을 따라 구성됩니다:
+
+```
+components/
+├── ComponentName/
+│   ├── ComponentName.tsx        # 주 컴포넌트 파일
+│   ├── ComponentName.module.css # 스타일(필요한 경우)
+│   └── ComponentName.test.tsx   # 테스트 파일(필요한 경우)
+```
+
+**중요**: 단순 재전달(re-export)만 하는 index.ts 파일을 생성하지 않습니다. 절대 경로로 직접 import합니다.
+
+```typescript
+// ✅ 올바른 import 방식
+import ComponentName from 'afterdoc-hospital-mobile/components/ComponentName/ComponentName';
+```
+
+### 페이지 폴더 구조
+
+페이지 컴포넌트는 다음 패턴을 따릅니다:
+
+```
+pages/
+├── PageName/
+│   ├── PageName.tsx        # 페이지 컴포넌트
+│   ├── PageName.module.css # 스타일(필요한 경우)
+│   └── components/         # 페이지 전용 컴포넌트
+```
+
+**중요**: 단순 재전달(re-export)만 하는 index.ts 파일을 생성하지 않습니다. 절대 경로로 직접 import합니다.
+
+### 공통 폴더 구조
+
+각 애플리케이션에서 공통적으로 사용되는 폴더 구조:
+
+```
+src/
+├── apis/           # API 관련 코드
+├── assets/         # 정적 자산(이미지, 아이콘 등)
+├── components/     # 공통 컴포넌트
+├── config/         # 설정 파일
+├── hooks/          # 커스텀 훅
+├── pages/          # 페이지 컴포넌트
+├── states/         # 상태 관리(Atoms)
+├── styles/         # 글로벌 스타일
+├── templates/      # 페이지 템플릿
+├── types/          # 타입 정의
+└── utils/          # 유틸리티 함수
+```
+
+## 패키지 폴더 구조
+
+공유 패키지는 다음 구조를 따릅니다:
+
+```
+packages/
+├── package-name/
+│   ├── src/
+│   │   ├── components/   # 패키지 컴포넌트
+│   │   ├── hooks/        # 패키지 훅
+│   │   ├── utils/        # 패키지 유틸리티
+│   │   └── index.ts      # 패키지 진입점
+│   ├── package.json
+│   └── tsconfig.json
+```
+
+## 파일 그룹화 원칙
+
+- 관련 있는 파일들은 함께 그룹화
+- 페이지별 컴포넌트는 해당 페이지 폴더 내 `components/` 폴더에 배치
+- 재사용 가능한 컴포넌트는 글로벌 `components/` 폴더에 배치
+- 여러 앱에서 공유되는 기능은 패키지로 분리
+
+## 파일 명명 및 import 경로 규칙
+
+파일 명명 규칙과 import 경로 사용은 [명명 규칙](mdc:naming-conventions.mdc) 및 [코드 스타일](mdc:code-style.mdc) 규칙을 참고해주세요.
