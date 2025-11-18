@@ -21,6 +21,12 @@ export default defineConfig({
         '**/*.config.js',
         '**/vite-env.d.ts',
       ],
+      thresholds: {
+        statements: 100,
+        branches: 92,
+        functions: 100,
+        lines: 100,
+      },
     },
   },
   resolve: {

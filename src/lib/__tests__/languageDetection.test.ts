@@ -68,6 +68,30 @@ describe('detectLanguage', () => {
     expect(result.language).toBe('en-US')
     expect(result.script).toBe('latin')
   })
+
+  it('should handle mixed scripts', () => {
+    const result = detectLanguage('Hello 안녕하세요 こんにちは')
+
+    // Should detect one of the languages
+    expect(result.language).toBeDefined()
+    expect(result.script).toBeDefined()
+    expect(result.confidence).toBeGreaterThan(0)
+  })
+
+  it('should handle special characters and emojis', () => {
+    const result = detectLanguage('🎉 🚀 ✨ Special chars!')
+
+    // Should still work with special characters
+    expect(result.language).toBeDefined()
+    expect(result.script).toBeDefined()
+  })
+
+  it('should handle numbers with text', () => {
+    const result = detectLanguage('Hello 123 World 456')
+
+    expect(result.language).toBe('en-US')
+    expect(result.script).toBe('latin')
+  })
 })
 
 describe('getLanguageVoiceSettings', () => {

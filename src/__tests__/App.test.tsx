@@ -135,6 +135,23 @@ describe('App', () => {
     render(<App />)
     expect(screen.getByTestId('photo-analyzer')).toBeInTheDocument()
   })
+
+  it('should handle language change', async () => {
+    const { getByText, rerender } = render(<App />)
+
+    // Initially English
+    expect(screen.getByTestId('header')).toHaveTextContent('Language: en')
+
+    // Click button to change language to Korean
+    const button = getByText('Change to Korean')
+    button.click()
+
+    // Wait for state update
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    // localStorage should be updated
+    expect(localStorage.getItem('preferred-language')).toBe('ko')
+  })
 })
 
 describe('detectBrowserLanguage', () => {
@@ -184,5 +201,64 @@ describe('detectBrowserLanguage', () => {
 
     render(<App />)
     expect(screen.getByTestId('header')).toHaveTextContent('Language: en')
+  })
+
+  it('should handle undefined navigator.languages', () => {
+    Object.defineProperty(window.navigator, 'languages', {
+      writable: true,
+      value: undefined
+    })
+    Object.defineProperty(window.navigator, 'language', {
+      writable: true,
+      value: 'ko-KR'
+    })
+
+    render(<App />)
+    expect(screen.getByTestId('header')).toHaveTextContent('Language: ko')
+  })
+
+  it('should render Chinese footer text', () => {
+    Object.defineProperty(window.navigator, 'languages', {
+      writable: true,
+      value: ['zh-CN']
+    })
+
+    render(<App />)
+    expect(screen.getByText('AI创造性地解释您的照片。')).toBeInTheDocument()
+    expect(screen.getByText('隐私')).toBeInTheDocument()
+    expect(screen.getByText('条款')).toBeInTheDocument()
+    expect(screen.getByText('联系')).toBeInTheDocument()
+  })
+
+  it('should render Korean footer text', () => {
+    Object.defineProperty(window.navigator, 'languages', {
+      writable: true,
+      value: ['ko-KR']
+    })
+
+    render(<App />)
+    expect(screen.getByText('AI가 당신의 사진을 창의적으로 해석합니다.')).toBeInTheDocument()
+    expect(screen.getByText('개인정보')).toBeInTheDocument()
+    expect(screen.getByText('이용약관')).toBeInTheDocument()
+    expect(screen.getByText('문의')).toBeInTheDocument()
+  })
+
+  it('should render fallback text for unsupported language', () => {
+    // Set an unsupported language that doesn't match ko, en, or zh
+    // And make sure navigator.languages is also set to unsupported language
+    Object.defineProperty(window.navigator, 'languages', {
+      writable: true,
+      value: ['ja-JP']
+    })
+
+    localStorage.setItem('preferred-language', 'ja')
+
+    render(<App />)
+    // Should render English fallback because 'ja' is not in supported languages
+    // and browser language detection will fallback to English
+    expect(screen.getByText('AI creatively interprets your photos.')).toBeInTheDocument()
+    expect(screen.getByText('Privacy')).toBeInTheDocument()
+    expect(screen.getByText('Terms')).toBeInTheDocument()
+    expect(screen.getByText('Contact')).toBeInTheDocument()
   })
 })
