@@ -98,6 +98,9 @@ export default defineConfig({
       }
     })
   ],
+  server: {
+    port: 2010,
+  },
   appType: 'spa',
   optimizeDeps: {
     exclude: ['lucide-react'],

@@ -8,7 +8,6 @@ import { PersonaRequestBoard } from './components/PersonaRequestBoard'
 import AuthCallback from './components/AuthCallback'
 import { ToastProvider } from './components/ToastProvider'
 import { ImageProvider } from './contexts/ImageContext'
-import { BoltBadge } from './components/BoltBadge'
 
 // 브라우저 언어 감지 함수
 function detectBrowserLanguage(): string {
@@ -105,11 +104,6 @@ function App() {
                           <a href="#contact" className="hover:text-gray-700 transition-colors">
                             {selectedLanguage === 'ko' ? '문의' : selectedLanguage === 'en' ? 'Contact' : selectedLanguage === 'zh' ? '联系' : 'Contact'}
                           </a>
-                        </div>
-                        
-                        {/* Built with Bolt.new Badge */}
-                        <div className="flex justify-center pt-2">
-                          <BoltBadge />
                         </div>
                       </div>
                     </div>
